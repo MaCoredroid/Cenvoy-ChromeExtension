@@ -55,9 +55,7 @@ function showHoverLoading() {
 
 /**
  * Render the conversation as chat bubbles with a chat-style UI.
- * The very first user message (selected text) is skipped from display.
- * Each bubble's content is rendered using marked.parse so that code blocks,
- * newlines, and markdown formatting are preserved.
+ * The very first user message (the selected text) is skipped.
  */
 function showConversation() {
   clearTimeoutIfNeeded();
@@ -87,8 +85,8 @@ function showConversation() {
     bubble.style.maxWidth = "80%";
     bubble.style.wordWrap = "break-word";
     
-    // Use Marked to render the message content (supports code blocks and newlines).
-    const rendered = marked.parse(msg.content);
+    // Render message using Marked.
+    const rendered = marked.parse(msg.content, { breaks: true });
     
     if (msg.role === "assistant") {
       row.style.justifyContent = "flex-start";
@@ -172,7 +170,7 @@ function removeHoverContainer() {
 
 /**
  * Retrieve or create the hover container.
- * This container consists of a header (with a close button) and a content area.
+ * The container includes a header (with a close button) and a content area.
  */
 function getOrCreateHoverContainer() {
   let container = document.getElementById("openai-hover-container");
@@ -198,8 +196,9 @@ function getHoverContentContainer(container) {
 
 /**
  * Create a dark, semi-transparent "glassy" container near the selected text.
- * The container is 600px wide, scrollable up to 400px, with a 50px left offset.
- * A header with a close ("X") button is included at the top.
+ * The container is 600px wide, resizable (both width and height), with a default height of 400px,
+ * and a 50px left offset. It consists of a header (with a sticky, draggable, transparent close button)
+ * and a content area.
  */
 function createHoverContainer() {
   const selection = window.getSelection();
@@ -217,7 +216,7 @@ function createHoverContainer() {
     top: `${topPos}px`,
     left: `${leftPos}px`,
     width: "600px",
-    maxHeight: "400px",
+    height: "400px",           // Set default height to allow vertical resizing.
     overflow: "auto",
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     backdropFilter: "blur(10px)",
@@ -229,7 +228,10 @@ function createHoverContainer() {
     boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
     fontFamily: "sans-serif",
     fontSize: "14px",
-    zIndex: 999999
+    zIndex: 999999,
+    resize: "both",          // Allow both horizontal and vertical resizing.
+    minWidth: "300px",
+    minHeight: "200px"
   });
 
   // Create a header for the close button.
@@ -238,7 +240,12 @@ function createHoverContainer() {
   Object.assign(header.style, {
     display: "flex",
     justifyContent: "flex-end",
-    marginBottom: "8px"
+    marginBottom: "8px",
+    position: "sticky",
+    top: "0",
+    backgroundColor: "transparent",  // Transparent background.
+    zIndex: "10",
+    cursor: "move"
   });
 
   const closeButton = document.createElement("button");
@@ -262,7 +269,36 @@ function createHoverContainer() {
   container.appendChild(content);
 
   document.body.appendChild(container);
+
+  // Make the header draggable.
+  makeDraggable(header, container);
+
   return container;
+}
+
+/**
+ * Make an element draggable using a specified handle.
+ * Here, the header is used as the drag handle for the container.
+ */
+function makeDraggable(handle, container) {
+  let offsetX, offsetY;
+  handle.addEventListener("mousedown", function(e) {
+    offsetX = e.clientX - container.getBoundingClientRect().left;
+    offsetY = e.clientY - container.getBoundingClientRect().top;
+    document.addEventListener("mousemove", mouseMoveHandler);
+    document.addEventListener("mouseup", mouseUpHandler);
+    e.preventDefault();
+  });
+
+  function mouseMoveHandler(e) {
+    container.style.left = (e.clientX - offsetX) + "px";
+    container.style.top = (e.clientY - offsetY) + "px";
+  }
+
+  function mouseUpHandler(e) {
+    document.removeEventListener("mousemove", mouseMoveHandler);
+    document.removeEventListener("mouseup", mouseUpHandler);
+  }
 }
 
 /**
