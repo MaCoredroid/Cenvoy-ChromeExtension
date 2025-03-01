@@ -11,6 +11,7 @@ let conversationHistory = []; // Holds the full conversation context
 chrome.runtime.onMessage.addListener((message) => {
   switch (message.type) {
     case "SHOW_LOADING":
+      conversationHistory = [];
       showHoverLoading();
       break;
     case "SHOW_RESULT":
@@ -18,7 +19,6 @@ chrome.runtime.onMessage.addListener((message) => {
       // Store the initial user prompt for context but skip rendering it.
       if (conversationHistory.length === 0) {
         conversationHistory = [
-          { role: "system", content: "You are a helpful assistant." },
           { role: "user", content: message.payload.initialUserPrompt },
           { role: "assistant", content: message.payload.text }
         ];
@@ -218,7 +218,7 @@ function createHoverContainer() {
     width: "600px",
     height: "400px",           // Set default height to allow vertical resizing.
     overflow: "auto",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(255, 254, 254, 0.1)",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
     border: "1px solid rgba(255, 255, 255, 0.2)",
