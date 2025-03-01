@@ -9,39 +9,63 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "openaiHoverHelper") {
-    chrome.storage.sync.get("openaiApiKey", async (data) => {
-      const userApiKey = data.openaiApiKey;
-      if (!userApiKey) {
-        // No API key: show an error + open options page
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_ERROR",
-          payload: { text: "No API key. Please set your OpenAI key in Options." }
-        });
-        chrome.runtime.openOptionsPage();
-        return;
-      }
+  // Store the selected text upfront.
+  const selectedText = info.selectionText;
+  chrome.storage.sync.get("openaiApiKey", async (data) => {
+    const userApiKey = data.openaiApiKey;
+    if (!userApiKey) {
+      // No API key: notify the user and open the Options page.
+      chrome.tabs.sendMessage(tab.id, {
+        type: "SHOW_ERROR",
+        payload: { text: "No API key. Please set your OpenAI key in Options." }
+      });
+      chrome.runtime.openOptionsPage();
+      
+      // Set up a one-time listener for when the API key is updated.
+      chrome.storage.onChanged.addListener(function listener(changes, area) {
+        if (
+          area === "sync" &&
+          changes.openaiApiKey &&
+          changes.openaiApiKey.newValue
+        ) {
+          chrome.storage.onChanged.removeListener(listener);
+          // Now that a key is set, retrieve it and re-run the query.
+          chrome.storage.sync.get("openaiApiKey", async (newData) => {
+            const newApiKey = newData.openaiApiKey;
+            try {
+              const responseText = await callOpenAI(selectedText, newApiKey);
+              chrome.tabs.sendMessage(tab.id, {
+                type: "SHOW_RESULT",
+                payload: { initialUserPrompt: selectedText, text: responseText }
+              });
+            } catch (err) {
+              chrome.tabs.sendMessage(tab.id, {
+                type: "SHOW_ERROR",
+                payload: { text: "OpenAI error: " + err.message }
+              });
+            }
+          });
+        }
+      });
+      return;
+    }
 
-      // Immediately show loading indicator
-      chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
+    // If API key exists, continue as normal.
+    chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
 
-      // Attempt to call OpenAI
-      const selectedText = info.selectionText;
-      try {
-        const responseText = await callOpenAI(selectedText, userApiKey);
-        // On success, show the result with the initial user prompt
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_RESULT",
-          payload: { initialUserPrompt: selectedText, text: responseText }
-        });
-      } catch (err) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_ERROR",
-          payload: { text: "OpenAI error: " + err.message }
-        });
-      }
-    });
-  }
+    try {
+      const responseText = await callOpenAI(selectedText, userApiKey);
+      chrome.tabs.sendMessage(tab.id, {
+        type: "SHOW_RESULT",
+        payload: { initialUserPrompt: selectedText, text: responseText }
+      });
+    } catch (err) {
+      chrome.tabs.sendMessage(tab.id, {
+        type: "SHOW_ERROR",
+        payload: { text: "OpenAI error: " + err.message }
+      });
+    }
+  });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -49,7 +73,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.sync.get("openaiApiKey", async (data) => {
       const userApiKey = data.openaiApiKey;
       if (!userApiKey) {
-        // Send an error back to the *content script*:
         chrome.tabs.sendMessage(sender.tab.id, {
           type: "CONTINUE_RESPONSE",
           payload: { error: "API key not set" }
@@ -61,8 +84,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           message.payload.conversationHistory,
           userApiKey
         );
-        
-        // Send the new message to the content script:
         chrome.tabs.sendMessage(sender.tab.id, {
           type: "CONTINUE_RESPONSE",
           payload: { responseText }
@@ -74,7 +95,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }
     });
-    return true; // Keep the event listener alive for async
+    return true; // Keep the messaging channel open.
   }
 });
 
@@ -82,6 +103,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * Call OpenAI for the initial prompt.
  */
 async function callOpenAI(prompt, apiKey) {
+  const interviewPrompt = `You are an experienced software engineer candidate in a technical interview. You have been given the following coding problem:
+
+[Insert your LeetCode problem statement here]
+
+In your single response, please do **all** of the following **in this order**:
+
+1. **Ask Clarifying Questions**: List any clarifying questions you would typically ask the interviewer.
+2. **Provide Hypothetical Answers**: Immediately provide realistic, most-likely answers from the interviewer’s perspective to those clarifying questions. (You are effectively playing both roles to simulate a complete interview in one shot.)
+3. **Restate Assumptions**: If there are additional assumptions you need to make (based on the hypothetical Q&A), state them here.
+4. **Solution Outline**:
+    - Present a clear, step-by-step plan to solve the problem.
+    - Discuss time complexity (Big-O analysis).
+    - Discuss space complexity.
+5. **Java Implementation**:
+    - Provide a clean, well-commented Java solution.
+6. **Optimization Discussion**:
+    - Discuss any potential optimizations (e.g., memory usage, handling large inputs, distributed systems considerations if applicable).
+7. **Summary**: Summarize your solution briefly.
+
+Remember: Everything should be contained in this single response—do not wait for further input. You will simulate both the candidate (who asks questions) and the interviewer (who provides likely clarifications) before proceeding to the solution.`;
+
+
+
+
+
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -89,9 +136,9 @@ async function callOpenAI(prompt, apiKey) {
       Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo", // or "gpt-4" if your key has GPT-4 access
+      model: "gpt-3.5-turbo", // or "gpt-4" if available
       messages: [
-        { role: "system", content: "You are a helpful assistant." },
+        { role: "system", content: interviewPrompt },
         { role: "user", content: prompt }
       ]
     })

@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener((message) => {
       break;
     case "SHOW_RESULT":
       // On initial result, initialize conversation history.
-      // We store the initial user prompt for context but skip rendering it.
+      // Store the initial user prompt for context but skip rendering it.
       if (conversationHistory.length === 0) {
         conversationHistory = [
           { role: "system", content: "You are a helpful assistant." },
@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 /**
- * Display a "Loading…" indicator in the content area for 30 seconds.
+ * Display a "Loading…" indicator (30s timeout).
  */
 function showHoverLoading() {
   removeHoverContainer();
@@ -49,14 +49,15 @@ function showHoverLoading() {
 }
 
 /**
- * Render the conversation as chat bubbles in a chat-style UI.
- * The first user message (the selected text) is skipped in rendering.
+ * Render the conversation as chat bubbles with a chat UI.
+ * The first user message (the selected text) is skipped.
+ * Each bubble's content is processed with marked.parseInline to render markdown.
  */
 function showConversation() {
   clearTimeoutIfNeeded();
   const container = getOrCreateHoverContainer();
   const content = getHoverContentContainer(container);
-  content.innerHTML = ""; // Clear previous conversation content
+  content.innerHTML = ""; // Clear previous content
 
   // Create a container for the conversation bubbles.
   const convContainer = document.createElement("div");
@@ -65,7 +66,7 @@ function showConversation() {
 
   let skippedInitialUser = false;
   conversationHistory.forEach((msg) => {
-    // Skip rendering the very first user message.
+    // Skip the very first user message (the selected text).
     if (msg.role === "user" && !skippedInitialUser) {
       skippedInitialUser = true;
       return;
@@ -82,21 +83,22 @@ function showConversation() {
 
     if (msg.role === "assistant") {
       row.style.justifyContent = "flex-start";
-      bubble.style.backgroundColor = "#004080"; // Assistant bubble (dark blue)
+      bubble.style.backgroundColor = "#004080"; // Assistant bubble color
       bubble.style.color = "#fff";
     } else if (msg.role === "user") {
       row.style.justifyContent = "flex-end";
-      bubble.style.backgroundColor = "#003366"; // Subsequent user message (different dark blue)
+      bubble.style.backgroundColor = "#003366"; // User bubble color
       bubble.style.color = "#fff";
     }
-    bubble.innerHTML = msg.content;
+    // Process message content with Marked inline to render markdown.
+    bubble.innerHTML = marked.parseInline(msg.content);
     row.appendChild(bubble);
     convContainer.appendChild(row);
   });
 
   content.appendChild(convContainer);
 
-  // Create the chat input area (a flex container with a textarea and send button).
+  // Create the chat input area as a flex container.
   const chatContainer = document.createElement("div");
   chatContainer.id = "chatContainer";
   Object.assign(chatContainer.style, {
@@ -105,7 +107,7 @@ function showConversation() {
     alignItems: "flex-start"
   });
 
-  // Multi-line textarea.
+  // Create a multi-line textarea.
   const textArea = document.createElement("textarea");
   textArea.id = "chatInput";
   textArea.placeholder = "Type your message here";
@@ -120,7 +122,7 @@ function showConversation() {
     border: "1px solid #ccc"
   });
 
-  // Send button.
+  // Create a "Send" button.
   const sendButton = document.createElement("button");
   sendButton.id = "sendButton";
   sendButton.textContent = "Send";
@@ -138,7 +140,6 @@ function showConversation() {
   chatContainer.appendChild(sendButton);
   content.appendChild(chatContainer);
 
-  // Attach event listener to the send button.
   sendButton.addEventListener("click", sendChatMessage);
 }
 
@@ -153,7 +154,7 @@ function showHoverError(errorMessage) {
 }
 
 /**
- * Remove the hover container entirely.
+ * Remove the entire hover container.
  */
 function removeHoverContainer() {
   const existing = document.getElementById("openai-hover-container");
@@ -162,7 +163,6 @@ function removeHoverContainer() {
 
 /**
  * Retrieve or create the hover container.
- * This container includes a header (with a close button) and a content area.
  */
 function getOrCreateHoverContainer() {
   let container = document.getElementById("openai-hover-container");
@@ -173,7 +173,7 @@ function getOrCreateHoverContainer() {
 }
 
 /**
- * Retrieve the content area of the hover container.
+ * Retrieve the content area (hoverContent) of the container.
  * If it doesn't exist, create it.
  */
 function getHoverContentContainer(container) {
@@ -188,8 +188,8 @@ function getHoverContentContainer(container) {
 
 /**
  * Create a dark, semi-transparent "glassy" container near the selected text.
- * The container is 600px wide, scrollable up to 400px, with a 50px left offset.
- * A header with a close ("X") button is included at the top.
+ * The container is 600px wide, scrollable (max-height: 400px) with a 50px left offset.
+ * A header with a close ("X") button is added at the top.
  */
 function createHoverContainer() {
   const selection = window.getSelection();
@@ -246,7 +246,7 @@ function createHoverContainer() {
   header.appendChild(closeButton);
   container.appendChild(header);
 
-  // Create an empty content area; this will be updated by showConversation, etc.
+  // Create an empty content area.
   const content = document.createElement("div");
   content.id = "hoverContent";
   container.appendChild(content);
@@ -256,7 +256,7 @@ function createHoverContainer() {
 }
 
 /**
- * Clear the 30-second timeout if a response arrives.
+ * Clear the 30-second timeout.
  */
 function clearTimeoutIfNeeded() {
   if (timeoutTimer) {
@@ -268,9 +268,9 @@ function clearTimeoutIfNeeded() {
 /**
  * Event handler for the send button.
  * 1) Appends the user's message to the conversation.
- * 2) Rerenders the conversation so the new message appears.
+ * 2) Rerenders the conversation.
  * 3) Shows a small loading indicator.
- * 4) Sends the updated conversation history to the background.
+ * 4) Sends the updated conversation to the background.
  */
 function sendChatMessage() {
   const container = getOrCreateHoverContainer();
@@ -279,19 +279,11 @@ function sendChatMessage() {
   const newMessage = chatInput.value.trim();
   if (!newMessage) return;
 
-  // Append user's new message.
   conversationHistory.push({ role: "user", content: newMessage });
-
-  // Rerender conversation.
   showConversation();
-
-  // Clear the textarea.
   chatInput.value = "";
-
-  // Show a small loading indicator.
   showLoadingIndicator();
 
-  // Send updated conversation to background.
   chrome.runtime.sendMessage(
     {
       type: "CONTINUE_CONVERSATION",
@@ -301,7 +293,7 @@ function sendChatMessage() {
       if (chrome.runtime.lastError) {
         showHoverError(chrome.runtime.lastError.message);
       }
-      // Background replies via a "CONTINUE_RESPONSE" message.
+      // The background script replies via "CONTINUE_RESPONSE"
     }
   );
 }
