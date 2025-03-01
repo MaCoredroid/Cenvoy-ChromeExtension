@@ -1,5 +1,10 @@
 // contentScript.js
 
+// Enable line breaks in Marked globally.
+marked.setOptions({
+  breaks: true,
+});
+
 let timeoutTimer = null;
 let conversationHistory = []; // Holds the full conversation context
 
@@ -36,7 +41,7 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 /**
- * Display a "Loading…" indicator (30s timeout).
+ * Display a "Loading…" indicator in the content area (with a 30s timeout).
  */
 function showHoverLoading() {
   removeHoverContainer();
@@ -49,15 +54,16 @@ function showHoverLoading() {
 }
 
 /**
- * Render the conversation as chat bubbles with a chat UI.
- * The first user message (the selected text) is skipped.
- * Each bubble's content is processed with marked.parseInline to render markdown.
+ * Render the conversation as chat bubbles with a chat-style UI.
+ * The very first user message (selected text) is skipped from display.
+ * Each bubble's content is rendered using marked.parse so that code blocks,
+ * newlines, and markdown formatting are preserved.
  */
 function showConversation() {
   clearTimeoutIfNeeded();
   const container = getOrCreateHoverContainer();
   const content = getHoverContentContainer(container);
-  content.innerHTML = ""; // Clear previous content
+  content.innerHTML = ""; // Clear previous conversation content
 
   // Create a container for the conversation bubbles.
   const convContainer = document.createElement("div");
@@ -80,18 +86,20 @@ function showConversation() {
     bubble.style.borderRadius = "16px";
     bubble.style.maxWidth = "80%";
     bubble.style.wordWrap = "break-word";
-
+    
+    // Use Marked to render the message content (supports code blocks and newlines).
+    const rendered = marked.parse(msg.content);
+    
     if (msg.role === "assistant") {
       row.style.justifyContent = "flex-start";
-      bubble.style.backgroundColor = "#004080"; // Assistant bubble color
+      bubble.style.backgroundColor = "#004080"; // Assistant bubble: dark blue
       bubble.style.color = "#fff";
     } else if (msg.role === "user") {
       row.style.justifyContent = "flex-end";
-      bubble.style.backgroundColor = "#003366"; // User bubble color
+      bubble.style.backgroundColor = "#003366"; // User bubble: a different dark blue
       bubble.style.color = "#fff";
     }
-    // Process message content with Marked inline to render markdown.
-    bubble.innerHTML = marked.parseInline(msg.content);
+    bubble.innerHTML = rendered;
     row.appendChild(bubble);
     convContainer.appendChild(row);
   });
@@ -140,6 +148,7 @@ function showConversation() {
   chatContainer.appendChild(sendButton);
   content.appendChild(chatContainer);
 
+  // Attach event listener to the send button.
   sendButton.addEventListener("click", sendChatMessage);
 }
 
@@ -154,7 +163,7 @@ function showHoverError(errorMessage) {
 }
 
 /**
- * Remove the entire hover container.
+ * Remove the hover container entirely.
  */
 function removeHoverContainer() {
   const existing = document.getElementById("openai-hover-container");
@@ -163,6 +172,7 @@ function removeHoverContainer() {
 
 /**
  * Retrieve or create the hover container.
+ * This container consists of a header (with a close button) and a content area.
  */
 function getOrCreateHoverContainer() {
   let container = document.getElementById("openai-hover-container");
@@ -173,7 +183,7 @@ function getOrCreateHoverContainer() {
 }
 
 /**
- * Retrieve the content area (hoverContent) of the container.
+ * Retrieve the content area ("hoverContent") from the container.
  * If it doesn't exist, create it.
  */
 function getHoverContentContainer(container) {
@@ -188,8 +198,8 @@ function getHoverContentContainer(container) {
 
 /**
  * Create a dark, semi-transparent "glassy" container near the selected text.
- * The container is 600px wide, scrollable (max-height: 400px) with a 50px left offset.
- * A header with a close ("X") button is added at the top.
+ * The container is 600px wide, scrollable up to 400px, with a 50px left offset.
+ * A header with a close ("X") button is included at the top.
  */
 function createHoverContainer() {
   const selection = window.getSelection();
@@ -222,7 +232,7 @@ function createHoverContainer() {
     zIndex: 999999
   });
 
-  // Create header container for the close button.
+  // Create a header for the close button.
   const header = document.createElement("div");
   header.id = "hoverHeader";
   Object.assign(header.style, {
@@ -256,7 +266,7 @@ function createHoverContainer() {
 }
 
 /**
- * Clear the 30-second timeout.
+ * Clear the 30-second timeout if a response arrives.
  */
 function clearTimeoutIfNeeded() {
   if (timeoutTimer) {
@@ -267,10 +277,10 @@ function clearTimeoutIfNeeded() {
 
 /**
  * Event handler for the send button.
- * 1) Appends the user's message to the conversation.
+ * 1) Appends the user's new message to the conversation.
  * 2) Rerenders the conversation.
  * 3) Shows a small loading indicator.
- * 4) Sends the updated conversation to the background.
+ * 4) Sends the updated conversation history to the background.
  */
 function sendChatMessage() {
   const container = getOrCreateHoverContainer();
@@ -293,7 +303,7 @@ function sendChatMessage() {
       if (chrome.runtime.lastError) {
         showHoverError(chrome.runtime.lastError.message);
       }
-      // The background script replies via "CONTINUE_RESPONSE"
+      // Background replies via a "CONTINUE_RESPONSE" message.
     }
   );
 }
