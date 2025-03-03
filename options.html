@@ -1,24 +1,67 @@
-<!-- options.html -->
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Extension Options</title>
-  </head>
-  <body>
-    <h1>OpenAI Hover Helper – Settings</h1>
-    <label for="apiKeyInput">OpenAI API Key:</label>
-    <br />
-    <input
-      type="password"
-      id="apiKeyInput"
-      placeholder="Enter your OpenAI API key..."
-      style="width: 300px;"
-    />
-    <br /><br />
-    <button id="saveBtn">Save</button>
-    <p id="status"></p>
-
-    <script src="options.js"></script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAI Extension Options</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; color: #333; }
+    h1 { text-align: center; }
+    .section { margin-bottom: 30px; }
+    label { display: block; margin: 10px 0 5px; }
+    input[type="text"], textarea, select {
+      width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    button { padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table, th, td { border: 1px solid #ddd; }
+    th, td { padding: 8px; text-align: left; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .actions button { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Extension Options</h1>
+  <div class="section">
+    <h2>Global API Key</h2>
+    <label for="globalApiKey">API Key:</label>
+    <input type="text" id="globalApiKey" placeholder="Enter your global API key">
+    <button id="saveGlobalKeyBtn">Save API Key</button>
+    <p id="globalKeyStatus"></p>
+  </div>
+  <div class="section">
+    <h2>Prompt Templates</h2>
+    <form id="templateForm">
+      <input type="hidden" id="templateId">
+      <label for="templateTitle">Template Title (Context Menu Name):</label>
+      <input type="text" id="templateTitle" placeholder="e.g. Ask Technical Interview">
+      <label for="templateContent">Prompt Content:</label>
+      <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
+      <label for="templateModel">OpenAI Model:</label>
+      <select id="templateModel">
+        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+        <option value="gpt-4">gpt-4</option>
+      </select>
+      <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
+      <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
+      <button type="submit" id="saveTemplateBtn">Save Template</button>
+    </form>
+    <h3>Existing Templates</h3>
+    <table id="templatesTable">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Model</th>
+          <th>API Key</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Templates will be populated here -->
+      </tbody>
+    </table>
+  </div>
+  <script src="options.js"></script>
+</body>
 </html>

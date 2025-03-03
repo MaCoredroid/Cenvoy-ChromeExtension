@@ -1,78 +1,54 @@
 // background.js
 
+// Function to (re)create all context menus.
+function createContextMenus() {
+  // Remove all existing context menus.
+  chrome.contextMenus.removeAll(() => {
+    // Create a default menu item.
+    chrome.contextMenus.create({
+      id: "defaultPrompt",
+      title: "Ask OpenAI: \"%s\"",
+      contexts: ["selection"]
+    });
+    // Load user-defined prompt templates.
+    chrome.storage.sync.get("promptTemplates", (data) => {
+      const templates = data.promptTemplates || [];
+      templates.forEach((tpl) => {
+        chrome.contextMenus.create({
+          id: "template_" + tpl.id,
+          title: tpl.title + ": \"%s\"",
+          contexts: ["selection"]
+        });
+      });
+    });
+  });
+}
+
+// Create context menus on installation.
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "openaiHoverHelper",
-    title: "Ask OpenAI about: \"%s\"",
-    contexts: ["selection"]
-  });
+  createContextMenus();
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  // Store the selected text upfront.
-  const selectedText = info.selectionText;
-  chrome.storage.sync.get("openaiApiKey", async (data) => {
-    const userApiKey = data.openaiApiKey;
-    if (!userApiKey) {
-      // No API key: notify the user and open the Options page.
-      chrome.tabs.sendMessage(tab.id, {
-        type: "SHOW_ERROR",
-        payload: { text: "No API key. Please set your OpenAI key in Options." }
-      });
-      chrome.runtime.openOptionsPage();
-      
-      // Set up a one-time listener for when the API key is updated.
-      chrome.storage.onChanged.addListener(function listener(changes, area) {
-        if (
-          area === "sync" &&
-          changes.openaiApiKey &&
-          changes.openaiApiKey.newValue
-        ) {
-          chrome.storage.onChanged.removeListener(listener);
-          // Now that a key is set, retrieve it and re-run the query.
-          chrome.storage.sync.get("openaiApiKey", async (newData) => {
-            const newApiKey = newData.openaiApiKey;
-            try {
-              const responseText = await callOpenAI(selectedText, newApiKey);
-              chrome.tabs.sendMessage(tab.id, {
-                type: "SHOW_RESULT",
-                payload: { initialUserPrompt: selectedText, text: responseText }
-              });
-            } catch (err) {
-              chrome.tabs.sendMessage(tab.id, {
-                type: "SHOW_ERROR",
-                payload: { text: "OpenAI error: " + err.message }
-              });
-            }
-          });
-        }
-      });
-      return;
-    }
-
-    // If API key exists, continue as normal.
-    chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
-
-    try {
-      const responseText = await callOpenAI(selectedText, userApiKey);
-      chrome.tabs.sendMessage(tab.id, {
-        type: "SHOW_RESULT",
-        payload: { initialUserPrompt: selectedText, text: responseText }
-      });
-    } catch (err) {
-      chrome.tabs.sendMessage(tab.id, {
-        type: "SHOW_ERROR",
-        payload: { text: "OpenAI error: " + err.message }
-      });
-    }
-  });
+// Update context menus when storage changes.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && (changes.promptTemplates || changes.globalApiKey)) {
+    createContextMenus();
+  }
 });
 
+// Listen for messages from the options page to update context menus and for continued conversation.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CONTINUE_CONVERSATION") {
-    chrome.storage.sync.get("openaiApiKey", async (data) => {
-      const userApiKey = data.openaiApiKey;
-      if (!userApiKey) {
+  if (message.type === "UPDATE_CONTEXT_MENUS") {
+    createContextMenus();
+  } else if (message.type === "CONTINUE_CONVERSATION") {
+    // Expecting conversationHistory to be an object: { messages, apiKey, model }
+    const conversation = message.payload.conversationHistory;
+    chrome.storage.sync.get("globalApiKey", async (data) => {
+      const globalApiKey = data.globalApiKey;
+      // Use the API key and model stored with the conversation, or fallback if missing.
+      const usedApiKey = conversation.apiKey || globalApiKey;
+      const usedModel = conversation.model || "gpt-3.5-turbo";
+      if (!usedApiKey) {
         chrome.tabs.sendMessage(sender.tab.id, {
           type: "CONTINUE_RESPONSE",
           payload: { error: "API key not set" }
@@ -80,10 +56,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       try {
-        const responseText = await callOpenAIConversation(
-          message.payload.conversationHistory,
-          userApiKey
-        );
+        const responseText = await callOpenAIUnified(conversation.messages, usedApiKey, usedModel);
         chrome.tabs.sendMessage(sender.tab.id, {
           type: "CONTINUE_RESPONSE",
           payload: { responseText }
@@ -99,71 +72,116 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-/**
- * Call OpenAI for the initial prompt.
- */
-async function callOpenAI(prompt, apiKey) {
-  const interviewPrompt = `You are an experienced software engineer candidate in a technical interview. You have been given the following coding problem:
-
-[Insert your LeetCode problem statement here]
-
-In your single response, please do **all** of the following **in this order**:
-
-1. **Ask Clarifying Questions**: List any clarifying questions you would typically ask the interviewer.
-2. **Provide Hypothetical Answers**: Immediately provide realistic, most-likely answers from the interviewer’s perspective to those clarifying questions. (You are effectively playing both roles to simulate a complete interview in one shot.)
-3. **Restate Assumptions**: If there are additional assumptions you need to make (based on the hypothetical Q&A), state them here.
-4. **Solution Outline**:
-    - Present a clear, step-by-step plan to solve the problem.
-    - Discuss time complexity (Big-O analysis).
-    - Discuss space complexity.
-5. **Java Implementation**:
-    - Provide a clean, well-commented Java solution.
-6. **Optimization Discussion**:
-    - Discuss any potential optimizations (e.g., memory usage, handling large inputs, distributed systems considerations if applicable).
-7. **Summary**: Summarize your solution briefly.
-
-Remember: Everything should be contained in this single response—do not wait for further input. You will simulate both the candidate (who asks questions) and the interviewer (who provides likely clarifications) before proceeding to the solution.`;
-
-
-
-
-
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo", // or "gpt-4" if available
-      messages: [
-        { role: "system", content: interviewPrompt },
-        { role: "user", content: prompt }
-      ]
-    })
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || "OpenAI request failed");
+// Handle context menu clicks.
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  const selectedText = info.selectionText;
+  if (info.menuItemId.startsWith("template_")) {
+    // Handle user-defined template.
+    const templateId = info.menuItemId.replace("template_", "");
+    chrome.storage.sync.get(["promptTemplates", "globalApiKey"], (data) => {
+      const templates = data.promptTemplates || [];
+      const template = templates.find(t => t.id === templateId);
+      if (!template) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: "SHOW_ERROR",
+          payload: { text: "Template not found." }
+        });
+        return;
+      }
+      // Replace placeholder {selection} with the selected text.
+      const systemPrompt = template.content.replace(/\{selection\}/g, selectedText);
+      const messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: selectedText }
+      ];
+      // Use the template-specific API key if set, otherwise fall back to the global API key.
+      const apiKey = template.apiKey ? template.apiKey : data.globalApiKey;
+      if (!apiKey) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: "SHOW_ERROR",
+          payload: { text: "No API key provided. Please set it in Options." }
+        });
+        chrome.runtime.openOptionsPage();
+        return;
+      }
+      chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
+      callOpenAIUnified(messages, apiKey, template.model)
+        .then((responseText) => {
+          // Send back meta data (apiKey and model) so subsequent conversation uses these.
+          chrome.tabs.sendMessage(tab.id, {
+            type: "SHOW_RESULT",
+            payload: {
+              initialUserPrompt: selectedText,
+              text: responseText,
+              apiKey: apiKey,
+              model: template.model
+            }
+          });
+        })
+        .catch((err) => {
+          chrome.tabs.sendMessage(tab.id, {
+            type: "SHOW_ERROR",
+            payload: { text: "OpenAI error: " + err.message }
+          });
+        });
+    });
+  } else if (info.menuItemId === "defaultPrompt") {
+    // Default prompt behavior.
+    chrome.storage.sync.get("globalApiKey", (data) => {
+      const apiKey = data.globalApiKey;
+      if (!apiKey) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: "SHOW_ERROR",
+          payload: { text: "No API key provided. Please set it in Options." }
+        });
+        chrome.runtime.openOptionsPage();
+        return;
+      }
+      const defaultPrompt = "You are a helpful assistant, help user understand the following content from web page";
+      const messages = [
+        { role: "system", content: defaultPrompt },
+        { role: "user", content: selectedText }
+      ];
+      chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
+      callOpenAIUnified(messages, apiKey)
+        .then((responseText) => {
+          // Include meta data so continued conversation uses global settings.
+          chrome.tabs.sendMessage(tab.id, {
+            type: "SHOW_RESULT",
+            payload: {
+              initialUserPrompt: selectedText,
+              text: responseText,
+              apiKey: apiKey,
+              model: "gpt-3.5-turbo"
+            }
+          });
+        })
+        .catch((err) => {
+          chrome.tabs.sendMessage(tab.id, {
+            type: "SHOW_ERROR",
+            payload: { text: "OpenAI error: " + err.message }
+          });
+        });
+    });
   }
-  return data.choices?.[0]?.message?.content || "No response.";
-}
+});
 
 /**
- * Call OpenAI for continued conversation using the full conversation history.
+ * Unified function to call the OpenAI chat completions endpoint.
+ *
+ * @param {Array} messages - Array of message objects (each with role and content).
+ * @param {string} apiKey - The API key to use for this request.
+ * @param {string} [model="gpt-3.5-turbo"] - The OpenAI model to use.
+ * @returns {Promise<string>} - The response content from OpenAI.
  */
-async function callOpenAIConversation(conversationHistory, apiKey) {
+async function callOpenAIUnified(messages, apiKey, model = "gpt-3.5-turbo") {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: conversationHistory
-    })
+    body: JSON.stringify({ model, messages })
   });
   const data = await response.json();
   if (!response.ok) {

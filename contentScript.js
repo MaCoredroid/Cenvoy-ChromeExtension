@@ -5,23 +5,28 @@ marked.setOptions({
   breaks: true,
 });
 
+// Conversation history is now an object containing messages and metadata.
+let conversationHistory = null; // { messages: [...], apiKey: string, model: string }
 let timeoutTimer = null;
-let conversationHistory = []; // Holds the full conversation context
 
 chrome.runtime.onMessage.addListener((message) => {
   switch (message.type) {
     case "SHOW_LOADING":
-      conversationHistory = [];
+      conversationHistory = null; // reset conversation when loading new result
       showHoverLoading();
       break;
     case "SHOW_RESULT":
       // On initial result, initialize conversation history.
-      // Store the initial user prompt for context but skip rendering it.
-      if (conversationHistory.length === 0) {
-        conversationHistory = [
-          { role: "user", content: message.payload.initialUserPrompt },
-          { role: "assistant", content: message.payload.text }
-        ];
+      // Store the initial user prompt and the meta (apiKey and model) for continued conversation.
+      if (!conversationHistory) {
+        conversationHistory = {
+          messages: [
+            { role: "user", content: message.payload.initialUserPrompt },
+            { role: "assistant", content: message.payload.text }
+          ],
+          apiKey: message.payload.apiKey || null,
+          model: message.payload.model || null
+        };
       }
       showConversation();
       break;
@@ -33,7 +38,10 @@ chrome.runtime.onMessage.addListener((message) => {
       if (message.payload.error) {
         showHoverError(message.payload.error);
       } else {
-        conversationHistory.push({ role: "assistant", content: message.payload.responseText });
+        // Append the assistant's response to conversation history.
+        if (conversationHistory && conversationHistory.messages) {
+          conversationHistory.messages.push({ role: "assistant", content: message.payload.responseText });
+        }
         showConversation();
       }
       break;
@@ -69,7 +77,7 @@ function showConversation() {
   convContainer.style.marginBottom = "16px";
 
   let skippedInitialUser = false;
-  conversationHistory.forEach((msg) => {
+  conversationHistory.messages.forEach((msg) => {
     // Skip the very first user message (the selected text).
     if (msg.role === "user" && !skippedInitialUser) {
       skippedInitialUser = true;
@@ -216,7 +224,7 @@ function createHoverContainer() {
     top: `${topPos}px`,
     left: `${leftPos}px`,
     width: "600px",
-    height: "400px",           // Set default height to allow vertical resizing.
+    height: "400px",           // Default height for vertical resizing.
     overflow: "auto",
     backgroundColor: "rgba(255, 254, 254, 0.1)",
     backdropFilter: "blur(10px)",
@@ -325,7 +333,8 @@ function sendChatMessage() {
   const newMessage = chatInput.value.trim();
   if (!newMessage) return;
 
-  conversationHistory.push({ role: "user", content: newMessage });
+  // Append the user's message to the conversation history.
+  conversationHistory.messages.push({ role: "user", content: newMessage });
   showConversation();
   chatInput.value = "";
   showLoadingIndicator();
