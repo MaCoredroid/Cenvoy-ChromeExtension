@@ -37,10 +37,20 @@ document.getElementById("templateForm").addEventListener("submit", (e) => {
     let templates = data.promptTemplates || [];
     if (id) {
       // Edit existing
-      templates = templates.map((tpl) => tpl.id === id ? { id, title, content, model, apiKey } : tpl);
+      templates = templates.map((tpl) =>
+        tpl.id === id
+          ? { id, title, content, model, apiKey }
+          : tpl
+      );
     } else {
       // Add new
-      templates.push({ id: Date.now().toString(), title, content, model, apiKey });
+      templates.push({
+        id: Date.now().toString(),
+        title,
+        content,
+        model,
+        apiKey,
+      });
     }
     chrome.storage.sync.set({ promptTemplates: templates }, () => {
       resetForm();
@@ -56,17 +66,44 @@ function loadTemplates() {
     const templates = data.promptTemplates || [];
     const tbody = document.querySelector("#templatesTable tbody");
     tbody.innerHTML = "";
+
     templates.forEach((tpl) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${tpl.title}</td>
-        <td>${tpl.model}</td>
-        <td>${tpl.apiKey ? "Set" : "Default"}</td>
-        <td class="actions">
-          <button onclick="editTemplate('${tpl.id}')">Edit</button>
-          <button onclick="deleteTemplate('${tpl.id}')">Delete</button>
-        </td>
-      `;
+
+      const titleTd = document.createElement("td");
+      titleTd.textContent = tpl.title;
+
+      const modelTd = document.createElement("td");
+      modelTd.textContent = tpl.model;
+
+      const apiKeyTd = document.createElement("td");
+      apiKeyTd.textContent = tpl.apiKey ? "Set" : "Default";
+
+      const actionsTd = document.createElement("td");
+      actionsTd.classList.add("actions");
+
+      // "Edit" button
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => {
+        editTemplate(tpl.id);
+      });
+
+      // "Delete" button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => {
+        deleteTemplate(tpl.id);
+      });
+
+      actionsTd.appendChild(editBtn);
+      actionsTd.appendChild(deleteBtn);
+
+      tr.appendChild(titleTd);
+      tr.appendChild(modelTd);
+      tr.appendChild(apiKeyTd);
+      tr.appendChild(actionsTd);
+
       tbody.appendChild(tr);
     });
   });
@@ -83,7 +120,7 @@ function resetForm() {
 window.editTemplate = function(id) {
   chrome.storage.sync.get("promptTemplates", (data) => {
     const templates = data.promptTemplates || [];
-    const tpl = templates.find(t => t.id === id);
+    const tpl = templates.find((t) => t.id === id);
     if (tpl) {
       document.getElementById("templateId").value = tpl.id;
       document.getElementById("templateTitle").value = tpl.title;
@@ -92,13 +129,13 @@ window.editTemplate = function(id) {
       document.getElementById("templateApiKey").value = tpl.apiKey || "";
     }
   });
-}
+};
 
 window.deleteTemplate = function(id) {
   if (confirm("Are you sure you want to delete this template?")) {
     chrome.storage.sync.get("promptTemplates", (data) => {
       let templates = data.promptTemplates || [];
-      templates = templates.filter(t => t.id !== id);
+      templates = templates.filter((t) => t.id !== id);
       chrome.storage.sync.set({ promptTemplates: templates }, () => {
         loadTemplates();
         // Notify background to update context menus.
@@ -106,4 +143,4 @@ window.deleteTemplate = function(id) {
       });
     });
   }
-}
+};

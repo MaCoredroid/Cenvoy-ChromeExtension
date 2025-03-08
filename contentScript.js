@@ -1,5 +1,3 @@
-// contentScript.js
-
 // Enable line breaks in Marked globally.
 marked.setOptions({
   breaks: true,
@@ -178,7 +176,7 @@ function removeHoverContainer() {
 
 /**
  * Retrieve or create the hover container.
- * The container includes a header (with a close button) and a content area.
+ * The container includes a header (for dragging) and a content area.
  */
 function getOrCreateHoverContainer() {
   let container = document.getElementById("openai-hover-container");
@@ -205,8 +203,8 @@ function getHoverContentContainer(container) {
 /**
  * Create a dark, semi-transparent "glassy" container near the selected text.
  * The container is 600px wide, resizable (both width and height), with a default height of 400px,
- * and a 50px left offset. It consists of a header (with a sticky, draggable, transparent close button)
- * and a content area.
+ * and a 50px left offset. It consists of a header (for dragging) and a content area.
+ * The close button is appended directly to the container and positioned absolutely.
  */
 function createHoverContainer() {
   const selection = window.getSelection();
@@ -232,7 +230,6 @@ function createHoverContainer() {
     border: "1px solid rgba(255, 255, 255, 0.2)",
     borderRadius: "8px",
     padding: "12px",
-    color: "#fff",
     boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
     fontFamily: "sans-serif",
     fontSize: "14px",
@@ -242,34 +239,34 @@ function createHoverContainer() {
     minHeight: "200px"
   });
 
-  // Create a header for the close button.
+  // Create a header for dragging (without the close button).
   const header = document.createElement("div");
   header.id = "hoverHeader";
   Object.assign(header.style, {
-    display: "flex",
-    justifyContent: "flex-end",
-    marginBottom: "8px",
-    position: "sticky",
-    top: "0",
-    backgroundColor: "transparent",  // Transparent background.
-    zIndex: "10",
+    height: "20px", // minimal height for dragging
     cursor: "move"
   });
+  container.appendChild(header);
 
+  // Create the close button as a sibling of the header, positioned absolutely.
   const closeButton = document.createElement("button");
   closeButton.textContent = "X";
   Object.assign(closeButton.style, {
+    position: "absolute",
+    top: "4px",
+    right: "4px",
     background: "transparent",
     border: "none",
-    color: "#fff",
     fontSize: "16px",
-    cursor: "pointer"
+    cursor: "pointer",
+    color: "black",
+    mixBlendMode: "difference", // White becomes black on white backgrounds, and remains white on dark backgrounds.
+    zIndex: "11"
   });
   closeButton.addEventListener("click", () => {
     container.remove();
   });
-  header.appendChild(closeButton);
-  container.appendChild(header);
+  container.appendChild(closeButton);
 
   // Create an empty content area.
   const content = document.createElement("div");
@@ -287,20 +284,26 @@ function createHoverContainer() {
 /**
  * Make an element draggable using a specified handle.
  * Here, the header is used as the drag handle for the container.
+ * 
+ * Fix: We add the window's scroll offsets when updating the container's left and top,
+ * ensuring that the container follows the mouse precisely without "popping" above it.
  */
 function makeDraggable(handle, container) {
   let offsetX, offsetY;
   handle.addEventListener("mousedown", function(e) {
-    offsetX = e.clientX - container.getBoundingClientRect().left;
-    offsetY = e.clientY - container.getBoundingClientRect().top;
+    // Use getBoundingClientRect() for viewport coordinates.
+    const rect = container.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
     document.addEventListener("mousemove", mouseMoveHandler);
     document.addEventListener("mouseup", mouseUpHandler);
     e.preventDefault();
   });
 
   function mouseMoveHandler(e) {
-    container.style.left = (e.clientX - offsetX) + "px";
-    container.style.top = (e.clientY - offsetY) + "px";
+    // Convert viewport coordinates to document coordinates.
+    container.style.left = (e.clientX - offsetX + window.scrollX) + "px";
+    container.style.top = (e.clientY - offsetY + window.scrollY) + "px";
   }
 
   function mouseUpHandler(e) {
@@ -364,6 +367,11 @@ function showLoadingIndicator() {
     loadingIndicator = document.createElement("div");
     loadingIndicator.id = "loadingIndicator";
     loadingIndicator.style.marginTop = "10px";
+    Object.assign(loadingIndicator.style, {
+      mixBlendMode: "difference",
+      color: "white",
+      textShadow: "0 0 2px rgba(0,0,0,0.8)"
+    });
     loadingIndicator.innerHTML = `<em>Loading…</em>`;
     content.appendChild(loadingIndicator);
   }
