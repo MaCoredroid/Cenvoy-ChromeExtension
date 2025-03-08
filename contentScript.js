@@ -62,6 +62,8 @@ function showHoverLoading() {
 /**
  * Render the conversation as chat bubbles with a chat-style UI.
  * The very first user message (the selected text) is skipped.
+ *
+ * Each bubble has a "Copy" button at the end (bottom) of the bubble.
  */
 function showConversation() {
   clearTimeoutIfNeeded();
@@ -81,17 +83,20 @@ function showConversation() {
       skippedInitialUser = true;
       return;
     }
+
+    // Create a row (one chat bubble).
     const row = document.createElement("div");
     row.style.display = "flex";
     row.style.marginBottom = "8px";
 
     const bubble = document.createElement("div");
+    bubble.style.position = "relative";
     bubble.style.padding = "8px 12px";
     bubble.style.borderRadius = "16px";
     bubble.style.maxWidth = "80%";
     bubble.style.wordWrap = "break-word";
-    
-    // Render message using Marked.
+
+    // Render message using Marked (Markdown -> HTML).
     const rendered = marked.parse(msg.content, { breaks: true });
     
     if (msg.role === "assistant") {
@@ -103,7 +108,48 @@ function showConversation() {
       bubble.style.backgroundColor = "#003366"; // User bubble: a different dark blue
       bubble.style.color = "#fff";
     }
+    
+    // Insert the rendered HTML into the bubble.
     bubble.innerHTML = rendered;
+
+    // --- Add "Copy" button at the end (bottom) of the bubble ---
+    const copyContainer = document.createElement("div");
+    Object.assign(copyContainer.style, {
+      display: "flex",
+      justifyContent: "flex-end",
+      marginTop: "8px"
+    });
+
+    const copyButton = document.createElement("button");
+    copyButton.textContent = "Copy";
+    Object.assign(copyButton.style, {
+      backgroundColor: "transparent",
+      border: "1px solid #fff",
+      color: "#fff",
+      borderRadius: "4px",
+      padding: "4px 8px",
+      cursor: "pointer",
+      fontSize: "14px",
+      opacity: "0.9"
+    });
+    copyButton.title = "Copy to clipboard";
+
+    copyButton.addEventListener("click", () => {
+      // Copy the bubble's *visible text* to clipboard.
+      // If you want the raw Markdown, use msg.content instead.
+      const textToCopy = bubble.innerText; 
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyButton.textContent = "Copied!";
+        setTimeout(() => {
+          copyButton.textContent = "Copy";
+        }, 1500);
+      });
+    });
+
+    copyContainer.appendChild(copyButton);
+    bubble.appendChild(copyContainer);
+    // --- End "Copy" button code ---
+
     row.appendChild(bubble);
     convContainer.appendChild(row);
   });
@@ -176,7 +222,7 @@ function removeHoverContainer() {
 
 /**
  * Retrieve or create the hover container.
- * The container includes a header (for dragging) and a content area.
+ * The container includes a header (always visible for dragging and closing) and a scrollable content area.
  */
 function getOrCreateHoverContainer() {
   let container = document.getElementById("openai-hover-container");
@@ -195,6 +241,11 @@ function getHoverContentContainer(container) {
   if (!content) {
     content = document.createElement("div");
     content.id = "hoverContent";
+    Object.assign(content.style, {
+      flex: "1",
+      overflowY: "auto",
+      overflowX: "hidden"
+    });
     container.appendChild(content);
   }
   return content;
@@ -202,9 +253,8 @@ function getHoverContentContainer(container) {
 
 /**
  * Create a dark, semi-transparent "glassy" container near the selected text.
- * The container is 600px wide, resizable (both width and height), with a default height of 400px,
- * and a 50px left offset. It consists of a header (for dragging) and a content area.
- * The close button is appended directly to the container and positioned absolutely.
+ * The container is 600px wide and 400px tall, with a header (fixed at the top) and a scrollable content area.
+ * The header contains the close button and serves as the drag handle.
  */
 function createHoverContainer() {
   const selection = window.getSelection();
@@ -222,8 +272,7 @@ function createHoverContainer() {
     top: `${topPos}px`,
     left: `${leftPos}px`,
     width: "600px",
-    height: "400px",           // Default height for vertical resizing.
-    overflow: "auto",
+    height: "400px",           // Fixed height
     backgroundColor: "rgba(255, 254, 254, 0.1)",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
@@ -236,41 +285,52 @@ function createHoverContainer() {
     zIndex: 999999,
     resize: "both",          // Allow both horizontal and vertical resizing.
     minWidth: "300px",
-    minHeight: "200px"
+    minHeight: "200px",
+    display: "flex",
+    flexDirection: "column"
   });
 
-  // Create a header for dragging (without the close button).
+  // Create header (for dragging and close button).
   const header = document.createElement("div");
   header.id = "hoverHeader";
   Object.assign(header.style, {
-    height: "20px", // minimal height for dragging
+    height: "40px", // Fixed header height
+    flexShrink: "0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    backgroundColor: "transparent",
+    position: "relative",
+    marginBottom: "8px",
     cursor: "move"
   });
-  container.appendChild(header);
 
-  // Create the close button as a sibling of the header, positioned absolutely.
+  // Create the close button inside the header.
   const closeButton = document.createElement("button");
   closeButton.textContent = "X";
   Object.assign(closeButton.style, {
-    position: "absolute",
-    top: "4px",
-    right: "4px",
     background: "transparent",
     border: "none",
     fontSize: "16px",
     cursor: "pointer",
-    color: "black",
-    mixBlendMode: "difference", // White becomes black on white backgrounds, and remains white on dark backgrounds.
+    color: "white",
+    mixBlendMode: "difference", // White becomes black on white backgrounds.
     zIndex: "11"
   });
   closeButton.addEventListener("click", () => {
     container.remove();
   });
-  container.appendChild(closeButton);
+  header.appendChild(closeButton);
+  container.appendChild(header);
 
-  // Create an empty content area.
+  // Create the scrollable content area.
   const content = document.createElement("div");
   content.id = "hoverContent";
+  Object.assign(content.style, {
+    flex: "1",
+    overflowY: "auto",
+    overflowX: "hidden"
+  });
   container.appendChild(content);
 
   document.body.appendChild(container);
@@ -283,15 +343,12 @@ function createHoverContainer() {
 
 /**
  * Make an element draggable using a specified handle.
- * Here, the header is used as the drag handle for the container.
- * 
- * Fix: We add the window's scroll offsets when updating the container's left and top,
- * ensuring that the container follows the mouse precisely without "popping" above it.
+ * The header is used as the drag handle for the container.
+ * The drag calculations add the window's scroll offsets to position the container accurately.
  */
 function makeDraggable(handle, container) {
   let offsetX, offsetY;
   handle.addEventListener("mousedown", function(e) {
-    // Use getBoundingClientRect() for viewport coordinates.
     const rect = container.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
@@ -301,7 +358,6 @@ function makeDraggable(handle, container) {
   });
 
   function mouseMoveHandler(e) {
-    // Convert viewport coordinates to document coordinates.
     container.style.left = (e.clientX - offsetX + window.scrollX) + "px";
     container.style.top = (e.clientY - offsetY + window.scrollY) + "px";
   }
