@@ -69,6 +69,17 @@
       <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
       <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
 
+      <!-- Add Enable Workflow Checkbox -->
+      <label for="enableWorkflow">Enable Workflow Steps:</label>
+      <input type="checkbox" id="enableWorkflow">
+
+      <!-- Workflow Steps Section, initially hidden -->
+      <div id="workflowContainer" style="display: none;">
+        <h3>Workflow Steps (optional)</h3>
+        <div id="workflowSteps"></div>
+        <button type="button" id="addWorkflowStep">Add Workflow Step</button>
+      </div>
+
       <button type="submit" id="saveTemplateBtn">Save Template</button>
     </form>
 

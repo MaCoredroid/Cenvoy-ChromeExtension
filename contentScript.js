@@ -14,9 +14,10 @@ chrome.runtime.onMessage.addListener((message) => {
       showHoverLoading();
       break;
     case "SHOW_RESULT":
-      // On initial result, initialize conversation history.
-      // Store the initial user prompt and the meta (apiKey and model) for continued conversation.
-      if (!conversationHistory) {
+      // On initial result, initialize conversation history from payload if available.
+      if (message.payload.conversationHistory) {
+        conversationHistory = message.payload.conversationHistory;
+      } else {
         conversationHistory = {
           messages: [
             { role: "user", content: message.payload.initialUserPrompt },
@@ -76,14 +77,7 @@ function showConversation() {
   convContainer.id = "conversationContainer";
   convContainer.style.marginBottom = "16px";
 
-  let skippedInitialUser = false;
   conversationHistory.messages.forEach((msg) => {
-    // Skip the very first user message (the selected text).
-    if (msg.role === "user" && !skippedInitialUser) {
-      skippedInitialUser = true;
-      return;
-    }
-
     // Create a row (one chat bubble).
     const row = document.createElement("div");
     row.style.display = "flex";
@@ -105,50 +99,50 @@ function showConversation() {
       bubble.style.color = "#fff";
     } else if (msg.role === "user") {
       row.style.justifyContent = "flex-end";
-      bubble.style.backgroundColor = "#003366"; // User bubble: a different dark blue
+      bubble.style.backgroundColor = "green"; // Updated user bubble: green background
       bubble.style.color = "#fff";
     }
     
     // Insert the rendered HTML into the bubble.
     bubble.innerHTML = rendered;
 
-    // --- Add "Copy" button at the end (bottom) of the bubble ---
-    const copyContainer = document.createElement("div");
-    Object.assign(copyContainer.style, {
-      display: "flex",
-      justifyContent: "flex-end",
-      marginTop: "8px"
-    });
-
-    const copyButton = document.createElement("button");
-    copyButton.textContent = "Copy";
-    Object.assign(copyButton.style, {
-      backgroundColor: "transparent",
-      border: "1px solid #fff",
-      color: "#fff",
-      borderRadius: "4px",
-      padding: "4px 8px",
-      cursor: "pointer",
-      fontSize: "14px",
-      opacity: "0.9"
-    });
-    copyButton.title = "Copy to clipboard";
-
-    copyButton.addEventListener("click", () => {
-      // Copy the bubble's *visible text* to clipboard.
-      // If you want the raw Markdown, use msg.content instead.
-      const textToCopy = bubble.innerText; 
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        copyButton.textContent = "Copied!";
-        setTimeout(() => {
-          copyButton.textContent = "Copy";
-        }, 1500);
+    // Begin changes: Only add copy button if message is from assistant
+    if (msg.role === "assistant") {
+      // --- Add "Copy" button at the end (bottom) of the bubble ---
+      const copyContainer = document.createElement("div");
+      Object.assign(copyContainer.style, {
+        display: "flex",
+        justifyContent: "flex-end",
+        marginTop: "8px"
       });
-    });
 
-    copyContainer.appendChild(copyButton);
-    bubble.appendChild(copyContainer);
-    // --- End "Copy" button code ---
+      const copyButton = document.createElement("button");
+      copyButton.textContent = "Copy";
+      Object.assign(copyButton.style, {
+        backgroundColor: "transparent",
+        border: "1px solid #fff",
+        color: "#fff",
+        borderRadius: "4px",
+        padding: "4px 8px",
+        cursor: "pointer",
+        fontSize: "14px",
+        opacity: "0.9"
+      });
+      copyButton.title = "Copy to clipboard";
+      copyButton.addEventListener("click", () => {
+        // Copy the bubble's *visible text* to clipboard.
+        const textToCopy = bubble.innerText;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          copyButton.textContent = "Copied!";
+          setTimeout(() => {
+            copyButton.textContent = "Copy";
+          }, 1500);
+        });
+      });
+      copyContainer.appendChild(copyButton);
+      bubble.appendChild(copyContainer);
+    }
+    // End changes
 
     row.appendChild(bubble);
     convContainer.appendChild(row);
@@ -242,9 +236,9 @@ function getHoverContentContainer(container) {
     content = document.createElement("div");
     content.id = "hoverContent";
     Object.assign(content.style, {
-      flex: "1",
       overflowY: "auto",
-      overflowX: "hidden"
+      overflowX: "hidden",
+      height: "calc(100% - 48px)"  // Adjust height relative to header (40px height + 8px marginBottom)
     });
     container.appendChild(content);
   }
@@ -282,12 +276,12 @@ function createHoverContainer() {
     boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
     fontFamily: "sans-serif",
     fontSize: "14px",
+    overflow: "auto",
     zIndex: 999999,
     resize: "both",          // Allow both horizontal and vertical resizing.
     minWidth: "300px",
     minHeight: "200px",
-    display: "flex",
-    flexDirection: "column"
+    boxSizing: "border-box"
   });
 
   // Create header (for dragging and close button).
@@ -327,9 +321,9 @@ function createHoverContainer() {
   const content = document.createElement("div");
   content.id = "hoverContent";
   Object.assign(content.style, {
-    flex: "1",
     overflowY: "auto",
-    overflowX: "hidden"
+    overflowX: "hidden",
+    height: "calc(100% - 48px)"  // Adjust height relative to header (40px height + 8px marginBottom)
   });
   container.appendChild(content);
 
