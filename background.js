@@ -82,56 +82,57 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       const templates = data.promptTemplates || [];
       const template = templates.find(t => t.id === templateId);
       if (!template) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_ERROR",
-          payload: { text: "Template not found." }
-        });
+        chrome.tabs.sendMessage(tab.id, { type: "SHOW_ERROR", payload: { text: "Template not found." } });
         return;
       }
       const apiKey = template.apiKey ? template.apiKey : data.globalApiKey;
       if (!apiKey) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_ERROR",
-          payload: { text: "No API key provided. Please set it in Options." }
-        });
+        chrome.tabs.sendMessage(tab.id, { type: "SHOW_ERROR", payload: { text: "No API key provided. Please set it in Options." } });
         chrome.runtime.openOptionsPage();
         return;
       }
-      chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
       (async () => {
         try {
           let output = "";
           let conversationHistory;
           if (template.workflow && Array.isArray(template.workflow) && template.workflow.length > 0) {
             conversationHistory = { messages: [], apiKey: apiKey, model: template.model };
-            // Execute initial step using the base template
             const initialPrompt = template.content.replace(/\{selection\}/g, selectedText);
             conversationHistory.messages.push({ role: "user", content: initialPrompt });
-            output = await callOpenAIUnified(conversationHistory.messages, apiKey, template.model);
-            conversationHistory.messages.push({ role: "assistant", content: output });
+            conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
+            chrome.tabs.sendMessage(tab.id, {
+              type: "SHOW_RESULT",
+              payload: { initialUserPrompt: initialPrompt, text: "__LOADING__", conversationHistory: conversationHistory }
+            });
+            output = await callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, template.model);
+            conversationHistory.messages[1].content = output;
+            chrome.tabs.sendMessage(tab.id, { type: "CONTINUE_RESPONSE", payload: { responseText: output } });
             // Process each workflow step sequentially
             for (const step of template.workflow) {
               const stepPrompt = step.content.replace(/\{previousOutput\}/g, output).replace(/\{selection\}/g, selectedText);
               conversationHistory.messages.push({ role: "user", content: stepPrompt });
-              output = await callOpenAIUnified(conversationHistory.messages, apiKey, template.model);
-              conversationHistory.messages.push({ role: "assistant", content: output });
+              conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
+              chrome.tabs.sendMessage(tab.id, {
+                type: "SHOW_RESULT",
+                payload: { initialUserPrompt: stepPrompt, text: "__LOADING__", conversationHistory: conversationHistory }
+              });
+              output = await callOpenAIUnified(conversationHistory.messages.slice(0, conversationHistory.messages.length - 1), apiKey, template.model);
+              conversationHistory.messages[conversationHistory.messages.length - 1].content = output;
+              chrome.tabs.sendMessage(tab.id, { type: "CONTINUE_RESPONSE", payload: { responseText: output } });
             }
           } else {
             conversationHistory = { messages: [], apiKey: apiKey, model: template.model };
-            // Default single-step behavior
             const promptText = template.content.replace(/\{selection\}/g, selectedText);
             conversationHistory.messages.push({ role: "user", content: promptText });
-            output = await callOpenAIUnified(conversationHistory.messages, apiKey, template.model);
-            conversationHistory.messages.push({ role: "assistant", content: output });
+            conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
+            chrome.tabs.sendMessage(tab.id, {
+              type: "SHOW_RESULT",
+              payload: { initialUserPrompt: promptText, text: "__LOADING__", conversationHistory: conversationHistory }
+            });
+            output = await callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, template.model);
+            conversationHistory.messages[1].content = output;
+            chrome.tabs.sendMessage(tab.id, { type: "CONTINUE_RESPONSE", payload: { responseText: output } });
           }
-          chrome.tabs.sendMessage(tab.id, {
-            type: "SHOW_RESULT",
-            payload: {
-              initialUserPrompt: conversationHistory.messages[0].content,
-              text: output,
-              conversationHistory: conversationHistory
-            }
-          });
         } catch (err) {
           chrome.tabs.sendMessage(tab.id, {
             type: "SHOW_ERROR",
@@ -145,27 +146,30 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     chrome.storage.sync.get("globalApiKey", (data) => {
       const apiKey = data.globalApiKey;
       if (!apiKey) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: "SHOW_ERROR",
-          payload: { text: "No API key provided. Please set it in Options." }
-        });
+        chrome.tabs.sendMessage(tab.id, { type: "SHOW_ERROR", payload: { text: "No API key provided. Please set it in Options." } });
         chrome.runtime.openOptionsPage();
         return;
       }
       const defaultPrompt = "You are a helpful assistant, help user understand the following content from web page";
+      const userPrompt = defaultPrompt + " " + selectedText;
       const conversationHistory = { messages: [], apiKey: apiKey, model: "gpt-3.5-turbo" };
-      conversationHistory.messages.push({ role: "user", content: defaultPrompt + " " + selectedText });
-      chrome.tabs.sendMessage(tab.id, { type: "SHOW_LOADING" });
-      callOpenAIUnified(conversationHistory.messages, apiKey, "gpt-3.5-turbo")
+      conversationHistory.messages.push({ role: "user", content: userPrompt });
+      conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
+      chrome.tabs.sendMessage(tab.id, {
+        type: "SHOW_RESULT",
+        payload: {
+          initialUserPrompt: userPrompt,
+          text: "__LOADING__",
+          conversationHistory: conversationHistory
+        }
+      });
+      // Call LLM using only the user message
+      callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-3.5-turbo")
         .then((responseText) => {
-          conversationHistory.messages.push({ role: "assistant", content: responseText });
+          conversationHistory.messages[1].content = responseText;
           chrome.tabs.sendMessage(tab.id, {
-            type: "SHOW_RESULT",
-            payload: {
-              initialUserPrompt: conversationHistory.messages[0].content,
-              text: responseText,
-              conversationHistory: conversationHistory
-            }
+            type: "CONTINUE_RESPONSE",
+            payload: { responseText }
           });
         })
         .catch((err) => {

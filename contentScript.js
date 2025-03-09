@@ -3,6 +3,34 @@ marked.setOptions({
   breaks: true,
 });
 
+// After marked.setOptions, inject loading animation CSS
+if (!document.getElementById("loading-style")) {
+  const style = document.createElement("style");
+  style.id = "loading-style";
+  style.textContent = `
+    @keyframes loadingDots {
+      0% { opacity: 0; }
+      33% { opacity: 0.5; }
+      66% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .loading-animation {
+      display: inline-block;
+    }
+    .loading-animation span {
+      animation: loadingDots 1.5s infinite;
+      display: inline-block;
+    }
+    .loading-animation span:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+    .loading-animation span:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Conversation history is now an object containing messages and metadata.
 let conversationHistory = null; // { messages: [...], apiKey: string, model: string }
 let timeoutTimer = null;
@@ -37,9 +65,13 @@ chrome.runtime.onMessage.addListener((message) => {
       if (message.payload.error) {
         showHoverError(message.payload.error);
       } else {
-        // Append the assistant's response to conversation history.
         if (conversationHistory && conversationHistory.messages) {
-          conversationHistory.messages.push({ role: "assistant", content: message.payload.responseText });
+          const lastMsg = conversationHistory.messages[conversationHistory.messages.length - 1];
+          if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === "__LOADING__") {
+            lastMsg.content = message.payload.responseText;
+          } else {
+            conversationHistory.messages.push({ role: "assistant", content: message.payload.responseText });
+          }
         }
         showConversation();
       }
@@ -90,8 +122,13 @@ function showConversation() {
     bubble.style.maxWidth = "80%";
     bubble.style.wordWrap = "break-word";
 
-    // Render message using Marked (Markdown -> HTML).
-    const rendered = marked.parse(msg.content, { breaks: true });
+    // Render message: if loading, show animated dots
+    let renderedContent;
+    if (msg.content === "__LOADING__") {
+      renderedContent = '<span class="loading-animation"><span>.</span><span>.</span><span>.</span></span>';
+    } else {
+      renderedContent = marked.parse(msg.content, { breaks: true });
+    }
     
     if (msg.role === "assistant") {
       row.style.justifyContent = "flex-start";
@@ -104,7 +141,7 @@ function showConversation() {
     }
     
     // Insert the rendered HTML into the bubble.
-    bubble.innerHTML = rendered;
+    bubble.innerHTML = renderedContent;
 
     // Begin changes: Only add copy button if message is from assistant
     if (msg.role === "assistant") {
