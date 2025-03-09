@@ -61,10 +61,11 @@
       <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
 
       <label for="templateModel">OpenAI Model:</label>
-      <select id="templateModel">
-        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-        <option value="gpt-4">gpt-4</option>
-      </select>
+      <input type="text" id="templateModel" list="modelOptions" placeholder="Enter model name...">
+      <datalist id="modelOptions">
+        <option value="gpt-3.5-turbo">
+        <option value="gpt-4">
+      </datalist>
 
       <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
       <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">

@@ -1,16 +1,19 @@
 // background.js
 
+let isContextMenuUpdating = false;
+
 // Function to (re)create all context menus.
 function createContextMenus() {
-  // Remove all existing context menus.
+  if (isContextMenuUpdating) return;
+  isContextMenuUpdating = true;
   chrome.contextMenus.removeAll(() => {
-    // Create a default menu item.
     chrome.contextMenus.create({
       id: "defaultPrompt",
       title: "Ask OpenAI: \"%s\"",
       contexts: ["selection"]
+    }, function() {
+      if (chrome.runtime.lastError) console.warn("Error creating defaultPrompt:", chrome.runtime.lastError.message);
     });
-    // Load user-defined prompt templates.
     chrome.storage.sync.get("promptTemplates", (data) => {
       const templates = data.promptTemplates || [];
       templates.forEach((tpl) => {
@@ -18,8 +21,11 @@ function createContextMenus() {
           id: "template_" + tpl.id,
           title: tpl.title + ": \"%s\"",
           contexts: ["selection"]
+        }, function() {
+          if (chrome.runtime.lastError) console.warn("Error creating template menu:", chrome.runtime.lastError.message);
         });
       });
+      isContextMenuUpdating = false;
     });
   });
 }
@@ -97,7 +103,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
           let conversationHistory;
           if (template.workflow && Array.isArray(template.workflow) && template.workflow.length > 0) {
             conversationHistory = { messages: [], apiKey: apiKey, model: template.model };
-            const initialPrompt = template.content.replace(/\{selection\}/g, selectedText);
+            let initialPrompt;
+            if (template.content.includes("{selection}")) {
+              initialPrompt = template.content.replace(/\{selection\}/g, selectedText);
+            } else {
+              initialPrompt = template.content + " " + selectedText;
+            }
             conversationHistory.messages.push({ role: "user", content: initialPrompt });
             conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
             chrome.tabs.sendMessage(tab.id, {
@@ -122,7 +133,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             }
           } else {
             conversationHistory = { messages: [], apiKey: apiKey, model: template.model };
-            const promptText = template.content.replace(/\{selection\}/g, selectedText);
+            let promptText;
+            if (template.content.includes("{selection}")) {
+              promptText = template.content.replace(/\{selection\}/g, selectedText);
+            } else {
+              promptText = template.content + " " + selectedText;
+            }
             conversationHistory.messages.push({ role: "user", content: promptText });
             conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
             chrome.tabs.sendMessage(tab.id, {
