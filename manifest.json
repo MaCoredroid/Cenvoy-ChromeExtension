@@ -1,8 +1,13 @@
 {
-    "name": "OpenAI Hover Helper",
+    "name": "agent4you",
     "version": "0.1",
     "description": "Right-click on selected text to get OpenAI response and display in a hover window.",
     "manifest_version": 3,
+    "icons": {
+      "16": "agent4you-icon.png",
+      "48": "agent4you-icon.png",
+      "128": "agent4you-icon.png"
+    },
     
     
     "permissions": [
