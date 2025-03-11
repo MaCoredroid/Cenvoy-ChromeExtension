@@ -7,6 +7,14 @@ function createContextMenus() {
   if (isContextMenuUpdating) return;
   isContextMenuUpdating = true;
   chrome.contextMenus.removeAll(() => {
+    // Inserted context menu item for options page
+    chrome.contextMenus.create({
+      id: "open_options",
+      title: "Options...",
+      contexts: ["all"]
+    }, function() {
+      if (chrome.runtime.lastError) console.warn("Error creating options menu:", chrome.runtime.lastError.message);
+    });
     chrome.contextMenus.create({
       id: "defaultPrompt",
       title: "Ask OpenAI: \"%s\"",
@@ -80,6 +88,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Handle context menu clicks.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "open_options") {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
   const selectedText = info.selectionText;
   if (info.menuItemId.startsWith("template_")) {
     // Handle user-defined template.

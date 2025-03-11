@@ -1,7 +1,7 @@
 {
     "name": "agent4you",
     "version": "0.1",
-    "description": "Bring Your Own Agent right into your browser! Right-click highlighted text to unleash your personal agent with custom prompt templates and streamlined workflow functions.",
+    "description": "Bring Your Own Agent right into your browser! Deploy a browser agent via context menu for tailored prompts and efficient workflow.",
     "manifest_version": 3,
     "icons": {
       "16": "agent4you-icon.png",
