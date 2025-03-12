@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load templates.
   loadTemplates();
 
+  // Setup AI Guided Setup Modal
+  setupAiGuidedFeature();
+
   // Setup Workflow Steps UI
   const addWorkflowBtn = document.getElementById("addWorkflowStep");
   if (addWorkflowBtn) {
@@ -76,9 +79,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Example usage: when editing an existing template, call populateWorkflowSteps(template.workflow)
-  // populateWorkflowSteps(existingTemplate.workflow);
-
   const enableWorkflowCheckbox = document.getElementById("enableWorkflow");
   if (enableWorkflowCheckbox) {
     enableWorkflowCheckbox.addEventListener("change", function() {
@@ -90,6 +90,187 @@ document.addEventListener("DOMContentLoaded", () => {
   window.getWorkflowSteps = getWorkflowSteps;
   window.populateWorkflowSteps = populateWorkflowSteps;
 });
+
+// Setup AI Guided Setup feature
+function setupAiGuidedFeature() {
+  const aiGuidedSetupBtn = document.getElementById("aiGuidedSetupBtn");
+  const manualSetupBtn = document.getElementById("manualSetupBtn");
+  const modal = document.getElementById("aiSetupModal");
+  const closeBtn = modal.querySelector(".close");
+  const generatePromptBtn = document.getElementById("generatePromptBtn");
+  const cancelAiSetupBtn = document.getElementById("cancelAiSetupBtn");
+  const usePromptBtn = document.getElementById("usePromptBtn");
+  const regeneratePromptBtn = document.getElementById("regeneratePromptBtn");
+  const editPromptBtn = document.getElementById("editPromptBtn");
+  
+  // Show modal when AI Guided Setup button is clicked
+  aiGuidedSetupBtn.addEventListener("click", () => {
+    document.getElementById("aiDescription").value = "";
+    document.getElementById("aiOutput").style.display = "none";
+    document.getElementById("aiSetupStep1").style.display = "block";
+    modal.style.display = "block";
+  });
+  
+  // Close modal when X is clicked
+  closeBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  
+  // Close modal when clicking outside of it
+  window.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+  
+  // Cancel button closes the modal
+  cancelAiSetupBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  
+  // Generate prompt when button is clicked
+  generatePromptBtn.addEventListener("click", async () => {
+    const description = document.getElementById("aiDescription").value.trim();
+    
+    if (!description) {
+      alert("Please enter a description of what you want the prompt to do.");
+      return;
+    }
+    
+    generatePromptBtn.textContent = "Generating...";
+    generatePromptBtn.disabled = true;
+    
+    try {
+      await generatePromptTemplate(description);
+      document.getElementById("aiSetupStep1").style.display = "none";
+      document.getElementById("aiOutput").style.display = "block";
+    } catch (error) {
+      alert("Error generating prompt template: " + error.message);
+    } finally {
+      generatePromptBtn.textContent = "Generate Prompt Template";
+      generatePromptBtn.disabled = false;
+    }
+  });
+  
+  // Use the generated prompt
+  usePromptBtn.addEventListener("click", () => {
+    const title = document.getElementById("aiTitle").textContent;
+    const content = document.getElementById("aiContent").textContent;
+    
+    document.getElementById("templateTitle").value = title;
+    document.getElementById("templateContent").value = content;
+    
+    modal.style.display = "none";
+  });
+  
+  // Regenerate prompt
+  regeneratePromptBtn.addEventListener("click", async () => {
+    const description = document.getElementById("aiDescription").value.trim();
+    
+    regeneratePromptBtn.textContent = "Regenerating...";
+    regeneratePromptBtn.disabled = true;
+    
+    try {
+      await generatePromptTemplate(description);
+    } catch (error) {
+      alert("Error regenerating prompt template: " + error.message);
+    } finally {
+      regeneratePromptBtn.textContent = "Regenerate";
+      regeneratePromptBtn.disabled = false;
+    }
+  });
+  
+  // Edit manually - populate form with generated values but don't close modal yet
+  editPromptBtn.addEventListener("click", () => {
+    const title = document.getElementById("aiTitle").textContent;
+    const content = document.getElementById("aiContent").textContent;
+    
+    document.getElementById("templateTitle").value = title;
+    document.getElementById("templateContent").value = content;
+    
+    modal.style.display = "none";
+  });
+}
+
+// Function to generate prompt template using OpenAI API
+async function generatePromptTemplate(description) {
+  // Get API key
+  const apiKey = await new Promise(resolve => {
+    chrome.storage.sync.get("globalApiKey", (data) => {
+      resolve(data.globalApiKey || "");
+    });
+  });
+  
+  if (!apiKey) {
+    throw new Error("Please set your OpenAI API key in the Global API Key section first.");
+  }
+  
+  const systemPrompt = `You are an expert at creating effective prompt templates for AI models. 
+  Your task is to create a detailed prompt template based on the following user request:
+  
+  "${description}"
+  
+  The prompt should include a clear title and a detailed prompt content.
+  Include the placeholder {selection} where the user's selected text should be inserted.
+  Return your response in this exact JSON format:
+  {
+    "title": "Concise, descriptive title for the prompt",
+    "content": "Detailed prompt content with {selection} placeholder"
+  }`;
+  
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          { role: "system", content: systemPrompt }
+        ]
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Unknown API error");
+    }
+    
+    const aiResponse = data.choices[0].message.content;
+    
+    try {
+      // Parse the response to get JSON
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : aiResponse;
+      const result = JSON.parse(jsonStr);
+      
+      // Safely set the text content
+      const titleElement = document.getElementById("aiTitle");
+      const contentElement = document.getElementById("aiContent");
+      
+      titleElement.textContent = result.title;
+      contentElement.textContent = result.content;
+      
+      // Ensure the aiOutput container is visible
+      document.getElementById("aiOutput").style.display = "block";
+      
+      // Scroll to the top of the content area
+      contentElement.scrollTop = 0;
+    } catch (parseError) {
+      console.error("Error parsing AI response:", parseError);
+      // If parsing fails, just display the raw response
+      document.getElementById("aiTitle").textContent = "Generated Title (please edit)";
+      document.getElementById("aiContent").textContent = aiResponse;
+    }
+    
+  } catch (error) {
+    console.error("Error calling OpenAI API:", error);
+    throw error;
+  }
+}
 
 document.getElementById("saveGlobalKeyBtn").addEventListener("click", () => {
   const globalKey = document.getElementById("globalApiKey").value.trim();
