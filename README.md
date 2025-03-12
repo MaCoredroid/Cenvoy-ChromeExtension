@@ -2,7 +2,7 @@
 
 **Bring Your Own AI Agent right into your browser!** Transform your web browsing with powerful OpenAI integration.
 
-![Agent4You Logo](agent4you-icon.png)
+<img src="agent4you-icon.png" alt="Agent4You Logo" width="128" height="128">
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-yellow)](https://chrome.google.com/webstore)
 [![License](https://img.shields.io/badge/License-NCOSL%201.0-blue)](LICENSE)
