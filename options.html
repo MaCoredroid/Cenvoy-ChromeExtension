@@ -16,6 +16,15 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    .model-select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+    }
     button {
       padding: 10px 20px;
       background: #007bff;
@@ -26,6 +35,10 @@
     }
     button:hover {
       background: #0056b3;
+    }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
     }
     table {
       width: 100%;
@@ -49,50 +62,50 @@
     #saveTemplateBtn {
       margin-top: 20px;
     }
-    /* AI Guided Setup modal styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      background-color: rgba(0,0,0,0.4);
-    }
-    .modal-content {
-      background-color: #fefefe;
-      margin: 10% auto;
-      padding: 20px;
-      border: 1px solid #888;
-      width: 80%;
-      max-width: 600px;
-      border-radius: 5px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .close:hover {
-      color: black;
-    }
-    .ai-buttons {
+    .button-group {
       display: flex;
-      justify-content: space-between;
-      margin-top: 15px;
+      gap: 10px;
+      margin-bottom: 15px;
     }
-    #aiOutput {
+    .tab-container {
+      margin-bottom: 20px;
+    }
+    .tab-button {
+      padding: 10px 20px;
+      background: #f2f2f2;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .tab-button.active {
+      border-bottom: 2px solid #007bff;
+      background: #e6e6e6;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 0 0 4px 4px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    /* AI Guided Setup styles */
+    #aiDescription {
+      border: 1px solid #4CAF50;
+      min-height: 100px;
+    }
+    #aiGuidedContainer {
+      margin-bottom: 20px;
+    }
+    .ai-result {
       background-color: #f9f9f9;
       padding: 15px;
       border-radius: 5px;
       margin: 15px 0;
-      display: none;
+      border: 1px solid #ddd;
     }
     .content-container {
       max-height: 300px;
@@ -102,7 +115,7 @@
       background-color: #fff;
       margin-bottom: 15px;
     }
-    #aiContent {
+    #aiGeneratedContent {
       white-space: pre-wrap;
       word-wrap: break-word;
       padding: 10px;
@@ -111,10 +124,41 @@
       line-height: 1.5;
       margin: 0;
     }
-    .button-group {
+    .step-container {
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      background-color: white;
+    }
+    .step-header {
       display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .step-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #007bff;
+    }
+    .result-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-left: 10px;
+      border: 3px solid rgba(0,0,0,0.1);
+      border-radius: 50%;
+      border-top-color: #007bff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -134,39 +178,82 @@
     <form id="templateForm">
       <input type="hidden" id="templateId">
 
-      <div class="button-group">
-        <button type="button" id="aiGuidedSetupBtn">AI Guided Setup</button>
-        <button type="button" id="manualSetupBtn">Manual Setup</button>
+      <div class="tab-container">
+        <button type="button" class="tab-button active" id="aiGuidedTab">AI Guided Setup</button>
+        <button type="button" class="tab-button" id="manualTab">Manual Setup</button>
       </div>
 
-      <label for="templateTitle">Template Title (Context Menu Name):</label>
-      <input type="text" id="templateTitle" placeholder="e.g. Ask Technical Interview">
+      <!-- AI Guided Setup Tab -->
+      <div id="aiGuidedContent" class="tab-content active">
+        <div class="step-container" id="step1">
+          <div class="step-header">
+            <div class="step-title">Step 1: Describe Your Prompt</div>
+          </div>
+          <p>Describe what you want your prompt template to do, and we'll generate it for you.</p>
+          <textarea id="aiDescription" rows="5" placeholder="Example: I want a prompt that helps analyze code for security vulnerabilities and suggests improvements"></textarea>
+          <div style="margin-top: 15px;">
+            <button type="button" id="generatePromptBtn">Generate Prompt Template</button>
+            <span id="generatingIndicator" style="display: none;">
+              Generating <span class="loading-spinner"></span>
+            </span>
+          </div>
+        </div>
 
-      <label for="templateContent">Prompt Content:</label>
-      <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
-
-      <label for="templateModel">OpenAI Model:</label>
-      <input type="text" id="templateModel" list="modelOptions" placeholder="Enter model name...">
-      <datalist id="modelOptions">
-        <option value="gpt-3.5-turbo">
-        <option value="gpt-4">
-      </datalist>
-
-      <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
-      <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
-
-      <!-- Add Enable Workflow Checkbox -->
-      <label for="enableWorkflow">Enable Workflow Steps:</label>
-      <input type="checkbox" id="enableWorkflow">
-
-      <!-- Workflow Steps Section, initially hidden -->
-      <div id="workflowContainer" style="display: none;">
-        <h3>Workflow Steps (optional)</h3>
-        <div id="workflowSteps"></div>
-        <button type="button" id="addWorkflowStep">Add Workflow Step</button>
+        <div class="step-container" id="step2" style="display: none;">
+          <div class="step-header">
+            <div class="step-title">Step 2: Review Generated Template</div>
+            <button type="button" id="backToStep1">Back</button>
+          </div>
+          <div class="ai-result">
+            <p><strong>Title:</strong> <span id="aiGeneratedTitle"></span></p>
+            <p><strong>Content:</strong></p>
+            <div class="content-container">
+              <pre id="aiGeneratedContent"></pre>
+            </div>
+            <div class="result-actions">
+              <button type="button" id="regenerateBtn">Regenerate</button>
+              <button type="button" id="useGeneratedPromptBtn">Use This Template</button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <button type="submit" id="saveTemplateBtn">Save Template</button>
+      <!-- Manual Setup Tab -->
+      <div id="manualContent" class="tab-content">
+        <label for="templateTitle">Template Title (Context Menu Name):</label>
+        <input type="text" id="templateTitle" placeholder="e.g. Ask Technical Interview">
+
+        <label for="templateContent">Prompt Content:</label>
+        <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
+      </div>
+
+      <!-- Common Fields for Both Tabs -->
+      <div style="margin-top: 20px;">
+        <label for="templateModel">OpenAI Model:</label>
+        <select id="templateModel" class="model-select">
+          <option value="gpt-4">GPT-4</option>
+          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          <option value="gpt-4-vision-preview">GPT-4 Vision</option>
+          <option value="gpt-4o">GPT-4o</option>
+        </select>
+
+        <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
+        <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
+
+        <!-- Add Enable Workflow Checkbox -->
+        <label for="enableWorkflow">Enable Workflow Steps:</label>
+        <input type="checkbox" id="enableWorkflow">
+
+        <!-- Workflow Steps Section, initially hidden -->
+        <div id="workflowContainer" style="display: none;">
+          <h3>Workflow Steps (optional)</h3>
+          <div id="workflowSteps"></div>
+          <button type="button" id="addWorkflowStep">Add Workflow Step</button>
+        </div>
+
+        <button type="submit" id="saveTemplateBtn">Save Template</button>
+      </div>
     </form>
 
     <h3>Existing Templates</h3>
@@ -183,37 +270,6 @@
         <!-- Templates will be populated here -->
       </tbody>
     </table>
-  </div>
-
-  <!-- AI Guided Setup Modal -->
-  <div id="aiSetupModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2>AI Guided Template Setup</h2>
-      
-      <div id="aiSetupStep1">
-        <p>Describe what you want your prompt template to do, and we'll generate it for you.</p>
-        <textarea id="aiDescription" rows="5" placeholder="Example: I want a prompt that helps analyze code for security vulnerabilities and suggests improvements"></textarea>
-        <div class="ai-buttons">
-          <button id="generatePromptBtn">Generate Prompt Template</button>
-          <button id="cancelAiSetupBtn">Cancel</button>
-        </div>
-      </div>
-
-      <div id="aiOutput" style="display: none;">
-        <h3>Generated Template</h3>
-        <p><strong>Title:</strong> <span id="aiTitle"></span></p>
-        <p><strong>Content:</strong></p>
-        <div class="content-container">
-          <pre id="aiContent"></pre>
-        </div>
-        <div class="ai-buttons">
-          <button id="usePromptBtn">Use This Template</button>
-          <button id="regeneratePromptBtn">Regenerate</button>
-          <button id="editPromptBtn">Edit Manually</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Link to the external JS file -->

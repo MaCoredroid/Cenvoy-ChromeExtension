@@ -9,7 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load templates.
   loadTemplates();
 
-  // Setup AI Guided Setup Modal
+  // Setup tabs functionality
+  setupTabs();
+
+  // Setup AI Guided Setup functionality
   setupAiGuidedFeature();
 
   // Setup Workflow Steps UI
@@ -91,42 +94,46 @@ document.addEventListener("DOMContentLoaded", () => {
   window.populateWorkflowSteps = populateWorkflowSteps;
 });
 
-// Setup AI Guided Setup feature
-function setupAiGuidedFeature() {
-  const aiGuidedSetupBtn = document.getElementById("aiGuidedSetupBtn");
-  const manualSetupBtn = document.getElementById("manualSetupBtn");
-  const modal = document.getElementById("aiSetupModal");
-  const closeBtn = modal.querySelector(".close");
-  const generatePromptBtn = document.getElementById("generatePromptBtn");
-  const cancelAiSetupBtn = document.getElementById("cancelAiSetupBtn");
-  const usePromptBtn = document.getElementById("usePromptBtn");
-  const regeneratePromptBtn = document.getElementById("regeneratePromptBtn");
-  const editPromptBtn = document.getElementById("editPromptBtn");
+// Setup tabs functionality
+function setupTabs() {
+  const aiGuidedTab = document.getElementById("aiGuidedTab");
+  const manualTab = document.getElementById("manualTab");
+  const aiGuidedContent = document.getElementById("aiGuidedContent");
+  const manualContent = document.getElementById("manualContent");
   
-  // Show modal when AI Guided Setup button is clicked
-  aiGuidedSetupBtn.addEventListener("click", () => {
-    document.getElementById("aiDescription").value = "";
-    document.getElementById("aiOutput").style.display = "none";
-    document.getElementById("aiSetupStep1").style.display = "block";
-    modal.style.display = "block";
+  aiGuidedTab.addEventListener("click", () => {
+    aiGuidedTab.classList.add("active");
+    manualTab.classList.remove("active");
+    aiGuidedContent.classList.add("active");
+    manualContent.classList.remove("active");
   });
   
-  // Close modal when X is clicked
-  closeBtn.addEventListener("click", () => {
-    modal.style.display = "none";
-  });
-  
-  // Close modal when clicking outside of it
-  window.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      modal.style.display = "none";
+  manualTab.addEventListener("click", () => {
+    manualTab.classList.add("active");
+    aiGuidedTab.classList.remove("active");
+    manualContent.classList.add("active");
+    aiGuidedContent.classList.remove("active");
+    
+    // If we have generated content, synchronize it to the manual fields
+    const generatedTitle = document.getElementById("aiGeneratedTitle").textContent;
+    const generatedContent = document.getElementById("aiGeneratedContent").textContent;
+    
+    if (generatedTitle && document.getElementById("templateTitle").value === "") {
+      document.getElementById("templateTitle").value = generatedTitle;
+    }
+    
+    if (generatedContent && document.getElementById("templateContent").value === "") {
+      document.getElementById("templateContent").value = generatedContent;
     }
   });
-  
-  // Cancel button closes the modal
-  cancelAiSetupBtn.addEventListener("click", () => {
-    modal.style.display = "none";
-  });
+}
+
+// Setup AI Guided Setup feature
+function setupAiGuidedFeature() {
+  const generatePromptBtn = document.getElementById("generatePromptBtn");
+  const regenerateBtn = document.getElementById("regenerateBtn");
+  const useGeneratedPromptBtn = document.getElementById("useGeneratedPromptBtn");
+  const backToStep1 = document.getElementById("backToStep1");
   
   // Generate prompt when button is clicked
   generatePromptBtn.addEventListener("click", async () => {
@@ -137,58 +144,58 @@ function setupAiGuidedFeature() {
       return;
     }
     
-    generatePromptBtn.textContent = "Generating...";
-    generatePromptBtn.disabled = true;
+    // Show loading indicator
+    generatePromptBtn.style.display = "none";
+    document.getElementById("generatingIndicator").style.display = "inline-block";
     
     try {
       await generatePromptTemplate(description);
-      document.getElementById("aiSetupStep1").style.display = "none";
-      document.getElementById("aiOutput").style.display = "block";
+      // Show step 2 and hide step 1
+      document.getElementById("step1").style.display = "none";
+      document.getElementById("step2").style.display = "block";
     } catch (error) {
       alert("Error generating prompt template: " + error.message);
     } finally {
-      generatePromptBtn.textContent = "Generate Prompt Template";
-      generatePromptBtn.disabled = false;
+      // Hide loading indicator
+      generatePromptBtn.style.display = "inline-block";
+      document.getElementById("generatingIndicator").style.display = "none";
     }
   });
   
+  // Back button returns to step 1
+  backToStep1.addEventListener("click", () => {
+    document.getElementById("step1").style.display = "block";
+    document.getElementById("step2").style.display = "none";
+  });
+  
   // Use the generated prompt
-  usePromptBtn.addEventListener("click", () => {
-    const title = document.getElementById("aiTitle").textContent;
-    const content = document.getElementById("aiContent").textContent;
+  useGeneratedPromptBtn.addEventListener("click", () => {
+    const title = document.getElementById("aiGeneratedTitle").textContent;
+    const content = document.getElementById("aiGeneratedContent").textContent;
     
+    // Populate the fields in the manual tab as well
     document.getElementById("templateTitle").value = title;
     document.getElementById("templateContent").value = content;
     
-    modal.style.display = "none";
+    // Switch to manual tab to let the user add any final touches
+    document.getElementById("manualTab").click();
   });
   
   // Regenerate prompt
-  regeneratePromptBtn.addEventListener("click", async () => {
+  regenerateBtn.addEventListener("click", async () => {
     const description = document.getElementById("aiDescription").value.trim();
     
-    regeneratePromptBtn.textContent = "Regenerating...";
-    regeneratePromptBtn.disabled = true;
+    regenerateBtn.textContent = "Regenerating...";
+    regenerateBtn.disabled = true;
     
     try {
       await generatePromptTemplate(description);
     } catch (error) {
       alert("Error regenerating prompt template: " + error.message);
     } finally {
-      regeneratePromptBtn.textContent = "Regenerate";
-      regeneratePromptBtn.disabled = false;
+      regenerateBtn.textContent = "Regenerate";
+      regenerateBtn.disabled = false;
     }
-  });
-  
-  // Edit manually - populate form with generated values but don't close modal yet
-  editPromptBtn.addEventListener("click", () => {
-    const title = document.getElementById("aiTitle").textContent;
-    const content = document.getElementById("aiContent").textContent;
-    
-    document.getElementById("templateTitle").value = title;
-    document.getElementById("templateContent").value = content;
-    
-    modal.style.display = "none";
   });
 }
 
@@ -226,7 +233,7 @@ async function generatePromptTemplate(description) {
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4",
+        model: "gpt-4", // Always use GPT-4 for generating templates
         messages: [
           { role: "system", content: systemPrompt }
         ]
@@ -248,22 +255,21 @@ async function generatePromptTemplate(description) {
       const result = JSON.parse(jsonStr);
       
       // Safely set the text content
-      const titleElement = document.getElementById("aiTitle");
-      const contentElement = document.getElementById("aiContent");
+      const titleElement = document.getElementById("aiGeneratedTitle");
+      const contentElement = document.getElementById("aiGeneratedContent");
       
       titleElement.textContent = result.title;
       contentElement.textContent = result.content;
       
-      // Ensure the aiOutput container is visible
-      document.getElementById("aiOutput").style.display = "block";
-      
-      // Scroll to the top of the content area
-      contentElement.scrollTop = 0;
+      // Scroll to the top of the content area if needed
+      if (contentElement.scrollTop) {
+        contentElement.scrollTop = 0;
+      }
     } catch (parseError) {
       console.error("Error parsing AI response:", parseError);
       // If parsing fails, just display the raw response
-      document.getElementById("aiTitle").textContent = "Generated Title (please edit)";
-      document.getElementById("aiContent").textContent = aiResponse;
+      document.getElementById("aiGeneratedTitle").textContent = "Generated Title (please edit)";
+      document.getElementById("aiGeneratedContent").textContent = aiResponse;
     }
     
   } catch (error) {
@@ -285,9 +291,32 @@ document.getElementById("saveGlobalKeyBtn").addEventListener("click", () => {
 document.getElementById("templateForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const id = document.getElementById("templateId").value;
-  const title = document.getElementById("templateTitle").value.trim();
-  const content = document.getElementById("templateContent").value.trim();
-  const model = document.getElementById("templateModel").value;
+  
+  // Get title and content from appropriate source based on active tab
+  let title, content;
+  
+  if (document.getElementById("aiGuidedContent").classList.contains("active")) {
+    // If AI Guided tab is active, get values from generated content
+    title = document.getElementById("aiGeneratedTitle").textContent;
+    content = document.getElementById("aiGeneratedContent").textContent;
+    
+    // If we don't have generated content yet, alert the user
+    if (!title || !content) {
+      alert("Please generate a prompt template first or switch to Manual Setup.");
+      return;
+    }
+  } else {
+    // If Manual tab is active, get values from manual inputs
+    title = document.getElementById("templateTitle").value.trim();
+    content = document.getElementById("templateContent").value.trim();
+  }
+  
+  // Get model and ensure it defaults to GPT-4 if empty
+  let model = document.getElementById("templateModel").value.trim();
+  if (!model) {
+    model = "gpt-4";
+  }
+  
   const apiKey = document.getElementById("templateApiKey").value.trim();
 
   let workflow = undefined;
@@ -328,6 +357,84 @@ document.getElementById("templateForm").addEventListener("submit", (e) => {
     });
   });
 });
+
+function resetForm() {
+  document.getElementById("templateId").value = "";
+  document.getElementById("templateTitle").value = "";
+  document.getElementById("templateContent").value = "";
+  document.getElementById("templateModel").value = "gpt-4";
+  document.getElementById("templateApiKey").value = "";
+  
+  // Reset AI guided fields
+  document.getElementById("aiDescription").value = "";
+  document.getElementById("aiGeneratedTitle").textContent = "";
+  document.getElementById("aiGeneratedContent").textContent = "";
+  document.getElementById("step1").style.display = "block";
+  document.getElementById("step2").style.display = "none";
+  
+  // Reset to AI guided tab as default
+  document.getElementById("aiGuidedTab").click();
+  
+  // Reset workflow fields
+  document.getElementById("enableWorkflow").checked = false;
+  document.getElementById("workflowContainer").style.display = "none";
+  document.getElementById("workflowSteps").innerHTML = "";
+}
+
+window.editTemplate = function(id) {
+  chrome.storage.sync.get("promptTemplates", (data) => {
+    const templates = data.promptTemplates || [];
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl) {
+      document.getElementById("templateId").value = tpl.id;
+      document.getElementById("templateTitle").value = tpl.title;
+      document.getElementById("templateContent").value = tpl.content;
+      
+      // Set model in the select dropdown - if model doesn't exist in options, add it
+      const modelSelect = document.getElementById("templateModel");
+      const modelExists = Array.from(modelSelect.options).some(option => option.value === tpl.model);
+      
+      if (!modelExists && tpl.model) {
+        // Add the model as an option if it doesn't exist in the dropdown
+        const newOption = document.createElement("option");
+        newOption.value = tpl.model;
+        newOption.text = tpl.model; // Display name same as value
+        modelSelect.add(newOption);
+      }
+      
+      modelSelect.value = tpl.model || "gpt-4"; // Default to gpt-4 if no model specified
+      document.getElementById("templateApiKey").value = tpl.apiKey || "";
+      
+      // Switch to manual tab when editing existing template
+      document.getElementById("manualTab").click();
+      
+      const enableWorkflowElem = document.getElementById("enableWorkflow");
+      if(tpl.workflow && tpl.workflow.length > 0) {
+        enableWorkflowElem.checked = true;
+        document.getElementById("workflowContainer").style.display = "block";
+        window.populateWorkflowSteps(tpl.workflow);
+      } else {
+        enableWorkflowElem.checked = false;
+        document.getElementById("workflowContainer").style.display = "none";
+        document.getElementById("workflowSteps").innerHTML = "";
+      }
+    }
+  });
+};
+
+window.deleteTemplate = function(id) {
+  if (confirm("Are you sure you want to delete this template?")) {
+    chrome.storage.sync.get("promptTemplates", (data) => {
+      let templates = data.promptTemplates || [];
+      templates = templates.filter((t) => t.id !== id);
+      chrome.storage.sync.set({ promptTemplates: templates }, () => {
+        loadTemplates();
+        // Notify background to update context menus.
+        chrome.runtime.sendMessage({ type: "UPDATE_CONTEXT_MENUS" });
+      });
+    });
+  }
+};
 
 function loadTemplates() {
   chrome.storage.sync.get("promptTemplates", (data) => {
@@ -376,55 +483,3 @@ function loadTemplates() {
     });
   });
 }
-
-function resetForm() {
-  document.getElementById("templateId").value = "";
-  document.getElementById("templateTitle").value = "";
-  document.getElementById("templateContent").value = "";
-  document.getElementById("templateModel").value = "gpt-3.5-turbo";
-  document.getElementById("templateApiKey").value = "";
-  
-  // Reset workflow fields
-  document.getElementById("enableWorkflow").checked = false;
-  document.getElementById("workflowContainer").style.display = "none";
-  document.getElementById("workflowSteps").innerHTML = "";
-}
-
-window.editTemplate = function(id) {
-  chrome.storage.sync.get("promptTemplates", (data) => {
-    const templates = data.promptTemplates || [];
-    const tpl = templates.find((t) => t.id === id);
-    if (tpl) {
-      document.getElementById("templateId").value = tpl.id;
-      document.getElementById("templateTitle").value = tpl.title;
-      document.getElementById("templateContent").value = tpl.content;
-      document.getElementById("templateModel").value = tpl.model;
-      document.getElementById("templateApiKey").value = tpl.apiKey || "";
-      
-      const enableWorkflowElem = document.getElementById("enableWorkflow");
-      if(tpl.workflow && tpl.workflow.length > 0) {
-        enableWorkflowElem.checked = true;
-        document.getElementById("workflowContainer").style.display = "block";
-        window.populateWorkflowSteps(tpl.workflow);
-      } else {
-        enableWorkflowElem.checked = false;
-        document.getElementById("workflowContainer").style.display = "none";
-        document.getElementById("workflowSteps").innerHTML = "";
-      }
-    }
-  });
-};
-
-window.deleteTemplate = function(id) {
-  if (confirm("Are you sure you want to delete this template?")) {
-    chrome.storage.sync.get("promptTemplates", (data) => {
-      let templates = data.promptTemplates || [];
-      templates = templates.filter((t) => t.id !== id);
-      chrome.storage.sync.set({ promptTemplates: templates }, () => {
-        loadTemplates();
-        // Notify background to update context menus.
-        chrome.runtime.sendMessage({ type: "UPDATE_CONTEXT_MENUS" });
-      });
-    });
-  }
-};
