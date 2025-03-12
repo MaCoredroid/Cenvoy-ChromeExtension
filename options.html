@@ -11,10 +11,34 @@
     label { display: block; margin: 10px 0 5px; }
     input[type="text"], textarea, select {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       margin-bottom: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+      margin-right: 5px;
+      transform: scale(1.2);
+      accent-color: #4CAF50;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .model-select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
     }
     button {
       padding: 10px 20px;
@@ -26,6 +50,10 @@
     }
     button:hover {
       background: #0056b3;
+    }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
     }
     table {
       width: 100%;
@@ -40,14 +68,218 @@
     .workflow-step {
       margin-bottom: 15px;
     }
+    .workflow-step textarea {
+      width: calc(100% - 80px);
+      display: inline-block;
+      vertical-align: middle;
+    }
     .removeWorkflowStep {
-      margin-top: 5px;
+      margin-left: 10px;
+      vertical-align: middle;
     }
     #addWorkflowStep {
       margin: 15px 0;
     }
     #saveTemplateBtn {
       margin-top: 20px;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .tab-container {
+      margin-bottom: 20px;
+    }
+    .tab-button {
+      padding: 10px 20px;
+      background: #f2f2f2;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .tab-button.active {
+      border-bottom: 2px solid #007bff;
+      background: #e6e6e6;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 0 0 4px 4px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    /* AI Guided Setup styles */
+    #aiDescription {
+      border: 1px solid #4CAF50;
+      min-height: 100px;
+    }
+    #aiGuidedContainer {
+      margin-bottom: 20px;
+    }
+    .ai-result {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+      border: 1px solid #ddd;
+    }
+    .content-container {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      margin-bottom: 15px;
+    }
+    #aiGeneratedContent {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
+    .step-container {
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      background-color: white;
+    }
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .step-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #007bff;
+    }
+    .result-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-left: 10px;
+      border: 3px solid rgba(0,0,0,0.1);
+      border-radius: 50%;
+      border-top-color: #007bff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      width: 500px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .close-modal {
+      float: right;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .model-list-container {
+      margin: 15px 0;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .sortable-list {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sortable-list li {
+      padding: 10px 15px;
+      margin: 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+      background-color: white;
+    }
+    .sortable-list li:last-child {
+      border-bottom: none;
+    }
+    .sortable-list li.dragging {
+      opacity: 0.5;
+      background-color: #f5f5f5;
+    }
+    .sortable-list li .default-model {
+      color: #28a745;
+      font-weight: bold;
+      font-style: italic;
+      margin-left: 5px;
+    }
+    .model-add-form {
+      margin: 15px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .model-add-form input {
+      flex: 1;
+      min-width: 150px;
+    }
+    .model-actions {
+      display: flex;
+      gap: 5px;
+    }
+    .modal-actions {
+      margin-top: 15px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .remove-model {
+      padding: 2px 8px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .remove-model:disabled {
+      background-color: #f5f5f5;
+      color: #999;
+      cursor: not-allowed;
+    }
+    #manageModelsBtn {
+      margin-left: 10px;
+      padding: 8px 12px;
     }
   </style>
 </head>
@@ -67,34 +299,106 @@
     <form id="templateForm">
       <input type="hidden" id="templateId">
 
-      <label for="templateTitle">Template Title (Context Menu Name):</label>
-      <input type="text" id="templateTitle" placeholder="e.g. Ask Technical Interview">
-
-      <label for="templateContent">Prompt Content:</label>
-      <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
-
-      <label for="templateModel">OpenAI Model:</label>
-      <input type="text" id="templateModel" list="modelOptions" placeholder="Enter model name...">
-      <datalist id="modelOptions">
-        <option value="gpt-3.5-turbo">
-        <option value="gpt-4">
-      </datalist>
-
-      <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
-      <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
-
-      <!-- Add Enable Workflow Checkbox -->
-      <label for="enableWorkflow">Enable Workflow Steps:</label>
-      <input type="checkbox" id="enableWorkflow">
-
-      <!-- Workflow Steps Section, initially hidden -->
-      <div id="workflowContainer" style="display: none;">
-        <h3>Workflow Steps (optional)</h3>
-        <div id="workflowSteps"></div>
-        <button type="button" id="addWorkflowStep">Add Workflow Step</button>
+      <div class="tab-container">
+        <button type="button" class="tab-button active" id="aiGuidedTab">AI Guided Setup</button>
+        <button type="button" class="tab-button" id="manualTab">Manual Setup</button>
       </div>
 
-      <button type="submit" id="saveTemplateBtn">Save Template</button>
+      <!-- AI Guided Setup Tab -->
+      <div id="aiGuidedContent" class="tab-content active">
+        <div class="step-container" id="step1">
+          <div class="step-header">
+            <div class="step-title">Step 1: Describe Your Prompt</div>
+          </div>
+          <p>Describe what you want your prompt template to do, and we'll generate it for you.</p>
+          <textarea id="aiDescription" rows="5" placeholder="Example: I want a prompt that helps analyze code for security vulnerabilities and suggests improvements"></textarea>
+          <div style="margin-top: 15px;">
+            <button type="button" id="generatePromptBtn">Generate Prompt Template</button>
+            <span id="generatingIndicator" style="display: none;">
+              Generating <span class="loading-spinner"></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="step-container" id="step2" style="display: none;">
+          <div class="step-header">
+            <div class="step-title">Step 2: Review Generated Template</div>
+            <button type="button" id="backToStep1">Back</button>
+          </div>
+          <div class="ai-result">
+            <p><strong>Title:</strong> <span id="aiGeneratedTitle"></span></p>
+            <p><strong>Content:</strong></p>
+            <div class="content-container">
+              <pre id="aiGeneratedContent"></pre>
+            </div>
+            <div class="result-actions">
+              <button type="button" id="regenerateBtn">Regenerate</button>
+              <button type="button" id="useGeneratedPromptBtn">Use This Template</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Setup Tab -->
+      <div id="manualContent" class="tab-content">
+        <label for="templateTitle">Template Title (Context Menu Name):</label>
+        <input type="text" id="templateTitle" placeholder="e.g. Ask Technical Interview">
+
+        <label for="templateContent">Prompt Content:</label>
+        <textarea id="templateContent" rows="4" placeholder="Define your prompt here (use {selection} as a placeholder)"></textarea>
+      </div>
+
+      <!-- Common Fields for Both Tabs -->
+      <div style="margin-top: 20px;">
+        <label for="templateModel">OpenAI Model:</label>
+        <select id="templateModel" class="model-select">
+          <option value="gpt-4">GPT‑4</option>
+          <option value="gpt-3.5-turbo">GPT‑3.5 Turbo</option>
+        </select>
+        <button type="button" id="manageModelsBtn">Manage Models</button>
+
+        <!-- Model Management Modal -->
+        <div id="modelModal" class="modal" style="display: none;">
+          <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Manage Available Models</h3>
+            <p>Drag models to reorder, add new models, or remove existing ones. GPT-4 cannot be removed.</p>
+            
+            <div class="model-list-container">
+              <ul id="modelList" class="sortable-list">
+                <!-- Models will be populated here -->
+              </ul>
+            </div>
+            
+            <div class="model-add-form">
+              <input type="text" id="newModelId" placeholder="Model ID (e.g., gpt-4-turbo)">
+              <input type="text" id="newModelName" placeholder="Display name (optional)">
+              <button type="button" id="addModelBtn">Add Model</button>
+            </div>
+            
+            <div class="modal-actions">
+              <button type="button" id="saveModelsBtn">Save Changes</button>
+              <button type="button" id="cancelModelsBtn">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
+        <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
+
+        <!-- Add Enable Workflow Checkbox -->
+        <label for="enableWorkflow">Enable Workflow Steps:</label>
+        <input type="checkbox" id="enableWorkflow">
+
+        <!-- Workflow Steps Section, initially hidden -->
+        <div id="workflowContainer" style="display: none;">
+          <h3>Workflow Steps (optional)</h3>
+          <div id="workflowSteps"></div>
+          <button type="button" id="addWorkflowStep">Add Workflow Step</button>
+        </div>
+
+        <button type="submit" id="saveTemplateBtn">Save Template</button>
+      </div>
     </form>
 
     <h3>Existing Templates</h3>
