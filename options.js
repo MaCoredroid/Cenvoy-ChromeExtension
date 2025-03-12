@@ -15,6 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup AI Guided Setup functionality
   setupAiGuidedFeature();
 
+  // Setup Model Management functionality
+  setupModelManagement();
+
   // Setup Workflow Steps UI
   const addWorkflowBtn = document.getElementById("addWorkflowStep");
   if (addWorkflowBtn) {
@@ -93,6 +96,288 @@ document.addEventListener("DOMContentLoaded", () => {
   window.getWorkflowSteps = getWorkflowSteps;
   window.populateWorkflowSteps = populateWorkflowSteps;
 });
+
+// Setup Model Management functionality
+function setupModelManagement() {
+  // Default models that should always be available
+  const DEFAULT_MODELS = [
+    { id: "gpt-4", name: "GPT‑4", isDefault: true },
+    { id: "gpt-3.5-turbo", name: "GPT‑3.5 Turbo" }
+  ];
+
+  // Load saved models or use defaults
+  loadModels();
+
+  // Setup modal functionality
+  const modal = document.getElementById("modelModal");
+  const manageModelsBtn = document.getElementById("manageModelsBtn");
+  const closeModalBtn = document.querySelector(".close-modal");
+  const saveModelsBtn = document.getElementById("saveModelsBtn");
+  const cancelModelsBtn = document.getElementById("cancelModelsBtn");
+  const addModelBtn = document.getElementById("addModelBtn");
+
+  // Open modal
+  manageModelsBtn.addEventListener("click", () => {
+    populateModelList();
+    modal.style.display = "flex";
+  });
+
+  // Close modal
+  closeModalBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  // Cancel changes
+  cancelModelsBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  // Save changes
+  saveModelsBtn.addEventListener("click", () => {
+    saveModelList();
+    modal.style.display = "none";
+  });
+
+  // Add new model
+  addModelBtn.addEventListener("click", addNewModel);
+
+  // Close modal when clicking outside
+  window.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+
+  // Load models from storage or use defaults
+  function loadModels() {
+    chrome.storage.sync.get("openaiModels", (data) => {
+      let models = data.openaiModels || DEFAULT_MODELS;
+      
+      // Make sure GPT-4 is always included and marked as default
+      if (!models.some(model => model.id === "gpt-4")) {
+        models.unshift({ id: "gpt-4", name: "GPT‑4", isDefault: true });
+      }
+      
+      // Update the model dropdown
+      updateModelDropdown(models);
+    });
+  }
+
+  // Update the model dropdown with the current models
+  function updateModelDropdown(models) {
+    const dropdown = document.getElementById("templateModel");
+    const currentValue = dropdown.value;
+    
+    // Clear existing options
+    dropdown.innerHTML = "";
+    
+    // Add options for each model
+    models.forEach(model => {
+      const option = document.createElement("option");
+      option.value = model.id;
+      
+      // Fix any model name with regular hyphens
+      let displayName = model.name || model.id;
+      if (displayName.includes("GPT-")) {
+        displayName = displayName.replace("GPT-", "GPT‑");
+      }
+      
+      option.textContent = displayName;
+      dropdown.appendChild(option);
+    });
+    
+    // Try to restore the previously selected value
+    if (currentValue && dropdown.querySelector(`option[value="${currentValue}"]`)) {
+      dropdown.value = currentValue;
+    } else {
+      // Default to GPT-4 if the previous value is no longer available
+      dropdown.value = "gpt-4";
+    }
+  }
+
+  // Populate the model list in the modal
+  function populateModelList() {
+    chrome.storage.sync.get("openaiModels", (data) => {
+      let models = data.openaiModels || DEFAULT_MODELS;
+      
+      // Make sure GPT-4 is always included and marked as default
+      if (!models.some(model => model.id === "gpt-4")) {
+        models.unshift({ id: "gpt-4", name: "GPT‑4", isDefault: true });
+      }
+      
+      const modelList = document.getElementById("modelList");
+      modelList.innerHTML = "";
+      
+      models.forEach(model => {
+        const li = document.createElement("li");
+        li.setAttribute("data-id", model.id);
+        
+        const modelInfo = document.createElement("div");
+        // Fix any model name with regular hyphens
+        let displayName = model.name || model.id;
+        if (displayName.includes("GPT-")) {
+          displayName = displayName.replace("GPT-", "GPT‑");
+        }
+        modelInfo.textContent = displayName;
+        
+        if (model.isDefault) {
+          const defaultSpan = document.createElement("span");
+          defaultSpan.className = "default-model";
+          defaultSpan.textContent = " (Default)";
+          modelInfo.appendChild(defaultSpan);
+        }
+        
+        const actions = document.createElement("div");
+        actions.className = "model-actions";
+        
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-model";
+        removeBtn.textContent = "Remove";
+        removeBtn.disabled = model.id === "gpt-4"; // Can't remove GPT-4
+        removeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          li.remove();
+        });
+        
+        actions.appendChild(removeBtn);
+        li.appendChild(modelInfo);
+        li.appendChild(actions);
+        modelList.appendChild(li);
+      });
+      
+      // Initialize drag and drop
+      initDragAndDrop();
+    });
+  }
+
+  // Initialize drag and drop functionality
+  function initDragAndDrop() {
+    const modelList = document.getElementById("modelList");
+    const items = modelList.querySelectorAll("li");
+    
+    items.forEach(item => {
+      item.setAttribute("draggable", true);
+      
+      item.addEventListener("dragstart", () => {
+        // Adding delay to make the dragging visual effect work properly
+        setTimeout(() => item.classList.add("dragging"), 0);
+      });
+      
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+      });
+    });
+    
+    modelList.addEventListener("dragover", e => {
+      e.preventDefault();
+      const afterElement = getDragAfterElement(modelList, e.clientY);
+      const draggable = document.querySelector(".dragging");
+      
+      if (afterElement == null) {
+        modelList.appendChild(draggable);
+      } else {
+        modelList.insertBefore(draggable, afterElement);
+      }
+    });
+    
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll("li:not(.dragging)")];
+      
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+  }
+
+  // Add a new model to the list
+  function addNewModel() {
+    const modelIdInput = document.getElementById("newModelId");
+    const modelNameInput = document.getElementById("newModelName");
+    
+    const modelId = modelIdInput.value.trim();
+    let modelName = modelNameInput.value.trim() || modelId;
+    
+    // Fix any model name with regular hyphens
+    if (modelName.includes("GPT-")) {
+      modelName = modelName.replace("GPT-", "GPT‑");
+    }
+    
+    if (!modelId) {
+      alert("Please enter a model ID");
+      return;
+    }
+    
+    // Check if model already exists
+    const existingModel = document.querySelector(`#modelList li[data-id="${modelId}"]`);
+    if (existingModel) {
+      alert("This model already exists in the list");
+      return;
+    }
+    
+    const modelList = document.getElementById("modelList");
+    const li = document.createElement("li");
+    li.setAttribute("data-id", modelId);
+    li.setAttribute("draggable", true);
+    
+    const modelInfo = document.createElement("div");
+    modelInfo.textContent = modelName;
+    
+    const actions = document.createElement("div");
+    actions.className = "model-actions";
+    
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove-model";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      li.remove();
+    });
+    
+    actions.appendChild(removeBtn);
+    li.appendChild(modelInfo);
+    li.appendChild(actions);
+    modelList.appendChild(li);
+    
+    // Add drag and drop event listeners
+    li.addEventListener("dragstart", () => {
+      setTimeout(() => li.classList.add("dragging"), 0);
+    });
+    
+    li.addEventListener("dragend", () => {
+      li.classList.remove("dragging");
+    });
+    
+    // Clear inputs
+    modelIdInput.value = "";
+    modelNameInput.value = "";
+  }
+
+  // Save the current model list to storage
+  function saveModelList() {
+    const modelItems = document.querySelectorAll("#modelList li");
+    const models = [];
+    
+    modelItems.forEach(item => {
+      const id = item.getAttribute("data-id");
+      const name = item.querySelector("div").textContent.replace(" (Default)", "");
+      const isDefault = id === "gpt-4";
+      
+      models.push({ id, name, isDefault });
+    });
+    
+    chrome.storage.sync.set({ openaiModels: models }, () => {
+      // Update the dropdown with the new models
+      updateModelDropdown(models);
+    });
+  }
+}
 
 // Setup tabs functionality
 function setupTabs() {
@@ -358,6 +643,39 @@ document.getElementById("templateForm").addEventListener("submit", (e) => {
   });
 });
 
+// Helper function to get template data from the form
+function getTemplateFromForm() {
+  // Get title and content from appropriate source based on active tab
+  let title, content;
+  
+  if (document.getElementById("aiGuidedContent").classList.contains("active")) {
+    // If AI Guided tab is active, get values from generated content
+    title = document.getElementById("aiGeneratedTitle").textContent;
+    content = document.getElementById("aiGeneratedContent").textContent;
+  } else {
+    // If Manual tab is active, get values from manual inputs
+    title = document.getElementById("templateTitle").value.trim();
+    content = document.getElementById("templateContent").value.trim();
+  }
+  
+  // Get model and ensure it defaults to GPT-4 if empty
+  let model = document.getElementById("templateModel").value.trim();
+  if (!model) {
+    model = "gpt-4";
+  }
+  
+  const apiKey = document.getElementById("templateApiKey").value.trim();
+  const id = document.getElementById("templateId").value;
+  
+  return {
+    id,
+    title,
+    content,
+    model,
+    apiKey
+  };
+}
+
 function resetForm() {
   document.getElementById("templateId").value = "";
   document.getElementById("templateTitle").value = "";
@@ -400,6 +718,15 @@ window.editTemplate = function(id) {
         newOption.value = tpl.model;
         newOption.text = tpl.model; // Display name same as value
         modelSelect.add(newOption);
+        
+        // Also add it to the stored models list if it's not there
+        chrome.storage.sync.get("openaiModels", (data) => {
+          let models = data.openaiModels || [];
+          if (!models.some(model => model.id === tpl.model)) {
+            models.push({ id: tpl.model, name: tpl.model });
+            chrome.storage.sync.set({ openaiModels: models });
+          }
+        });
       }
       
       modelSelect.value = tpl.model || "gpt-4"; // Default to gpt-4 if no model specified

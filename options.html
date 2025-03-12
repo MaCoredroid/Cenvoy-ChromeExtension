@@ -11,19 +11,36 @@
     label { display: block; margin: 10px 0 5px; }
     input[type="text"], textarea, select {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       margin-bottom: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      box-sizing: border-box;
+      letter-spacing: 0.5px;
+    }
+    input[type="checkbox"] {
+      margin-right: 5px;
+      transform: scale(1.2);
+      accent-color: #4CAF50;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
     }
     .model-select {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       margin-bottom: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
       background-color: white;
       cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.5px;
     }
     button {
       padding: 10px 20px;
@@ -53,8 +70,14 @@
     .workflow-step {
       margin-bottom: 15px;
     }
+    .workflow-step textarea {
+      width: calc(100% - 80px);
+      display: inline-block;
+      vertical-align: middle;
+    }
     .removeWorkflowStep {
-      margin-top: 5px;
+      margin-left: 10px;
+      vertical-align: middle;
     }
     #addWorkflowStep {
       margin: 15px 0;
@@ -96,6 +119,7 @@
     #aiDescription {
       border: 1px solid #4CAF50;
       min-height: 100px;
+      letter-spacing: 0.5px;
     }
     #aiGuidedContainer {
       margin-bottom: 20px;
@@ -119,10 +143,11 @@
       white-space: pre-wrap;
       word-wrap: break-word;
       padding: 10px;
-      font-family: monospace;
+      font-family: inherit;
       font-size: 14px;
       line-height: 1.5;
       margin: 0;
+      letter-spacing: 0.5px;
     }
     .step-container {
       padding: 15px;
@@ -159,6 +184,107 @@
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
+    }
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      width: 500px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .close-modal {
+      float: right;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .model-list-container {
+      margin: 15px 0;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .sortable-list {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sortable-list li {
+      padding: 10px 15px;
+      margin: 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+      background-color: white;
+      letter-spacing: 0.5px;
+    }
+    .sortable-list li:last-child {
+      border-bottom: none;
+    }
+    .sortable-list li.dragging {
+      opacity: 0.5;
+      background-color: #f5f5f5;
+    }
+    .sortable-list li .default-model {
+      color: #28a745;
+      font-weight: bold;
+      font-style: italic;
+      margin-left: 5px;
+    }
+    .model-add-form {
+      margin: 15px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .model-add-form input {
+      flex: 1;
+      min-width: 150px;
+    }
+    .model-actions {
+      display: flex;
+      gap: 5px;
+    }
+    .modal-actions {
+      margin-top: 15px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .remove-model {
+      padding: 2px 8px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .remove-model:disabled {
+      background-color: #f5f5f5;
+      color: #999;
+      cursor: not-allowed;
+    }
+    #manageModelsBtn {
+      margin-left: 10px;
+      padding: 8px 12px;
     }
   </style>
 </head>
@@ -231,12 +357,36 @@
       <div style="margin-top: 20px;">
         <label for="templateModel">OpenAI Model:</label>
         <select id="templateModel" class="model-select">
-          <option value="gpt-4">GPT-4</option>
-          <option value="gpt-4-turbo">GPT-4 Turbo</option>
-          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-          <option value="gpt-4-vision-preview">GPT-4 Vision</option>
-          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4">GPT‑4</option>
+          <option value="gpt-3.5-turbo">GPT‑3.5 Turbo</option>
         </select>
+        <button type="button" id="manageModelsBtn">Manage Models</button>
+
+        <!-- Model Management Modal -->
+        <div id="modelModal" class="modal" style="display: none;">
+          <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Manage Available Models</h3>
+            <p>Drag models to reorder, add new models, or remove existing ones. GPT-4 cannot be removed.</p>
+            
+            <div class="model-list-container">
+              <ul id="modelList" class="sortable-list">
+                <!-- Models will be populated here -->
+              </ul>
+            </div>
+            
+            <div class="model-add-form">
+              <input type="text" id="newModelId" placeholder="Model ID (e.g., gpt-4-turbo)">
+              <input type="text" id="newModelName" placeholder="Display name (optional)">
+              <button type="button" id="addModelBtn">Add Model</button>
+            </div>
+            
+            <div class="modal-actions">
+              <button type="button" id="saveModelsBtn">Save Changes</button>
+              <button type="button" id="cancelModelsBtn">Cancel</button>
+            </div>
+          </div>
+        </div>
 
         <label for="templateApiKey">Specific API Key (Optional, overrides global):</label>
         <input type="text" id="templateApiKey" placeholder="Enter specific API key for this template">
