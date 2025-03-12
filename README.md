@@ -1,12 +1,25 @@
-# agent4you
+# agent4you - AI Browser Assistant Chrome Extension
 
-**Bring Your Own Agent right into your browser!**
+**Bring Your Own AI Agent right into your browser!** Transform your web browsing with powerful OpenAI integration.
 
 ![Agent4You Logo](agent4you-icon.png)
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-yellow)](https://chrome.google.com/webstore)
+[![License](https://img.shields.io/badge/License-NCOSL%201.0-blue)](LICENSE)
+
 ## Overview
 
-agent4you is a powerful Chrome extension that brings AI assistance directly into your browsing experience. Simply highlight text on any webpage, right-click, and send it to OpenAI's powerful language models for instant assistance, analysis, or transformation.
+agent4you is a powerful Chrome extension that brings AI assistance directly into your browsing experience. Simply highlight text on any webpage, right-click, and send it to OpenAI's powerful language models (GPT-3.5, GPT-4) for instant assistance, analysis, or transformation.
+
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Configuration Options](#configuration-options)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## Features
 
@@ -16,6 +29,8 @@ agent4you is a powerful Chrome extension that brings AI assistance directly into
 - 🔑 **Flexible API Key Management**: Use a global API key or set specific keys for individual templates
 - 📱 **Elegant UI**: Beautiful, draggable response interface with Markdown support
 - 🔄 **Continued Conversations**: Follow up with additional queries in the same conversation
+- 💻 **Cross-browser Compatibility**: Works seamlessly in Chrome (more browsers coming soon)
+- 🛠️ **Customizable Experience**: Tailor the extension to fit your specific workflow needs
 
 ## Installation
 
@@ -68,6 +83,22 @@ agent4you is a powerful Chrome extension that brings AI assistance directly into
 - **Specific API Key**: Optional API key for this specific template
 - **Workflow Steps**: Sequential processing steps for complex tasks
 
+## Use Cases
+
+- **Content Research**: Quickly analyze and summarize web content while researching
+- **Code Assistance**: Get help understanding or improving code snippets you find online
+- **Language Translation**: Translate text from websites into your preferred language
+- **Content Generation**: Create variations or improvements of existing web content
+- **Learning Aid**: Get explanations of complex concepts you encounter while browsing
+
+## Technical Details
+
+Built with:
+- JavaScript
+- Chrome Extension Manifest V3
+- OpenAI API
+- Marked.js for Markdown rendering
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -85,3 +116,7 @@ For any commercial use of the Software, please contact the copyright holder for 
 ---
 
 Created with ❤️ by Zhiyuan Ma 
+
+## Keywords
+
+Chrome Extension, Browser Extension, OpenAI, GPT, AI Assistant, Text Processing, Context Menu, Workflow Automation, Prompt Templates, Web Browsing Enhancement, Chrome Plugin, AI Tools, GPT-3.5, GPT-4 
