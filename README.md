@@ -25,7 +25,9 @@ agent4you is a powerful Chrome extension that brings AI assistance directly into
 
 - 🔍 **Context Menu Integration**: Highlight any text on a webpage and access AI assistance directly through your browser's context menu
 - 📝 **Custom Prompt Templates**: Create and save your own prompt templates for specific tasks
+- 🧠 **AI-Guided Template Creation**: Simply describe what you want your prompt to do, and the extension will generate it for you
 - 🔄 **Multi-step Workflows**: Build sequential AI processing workflows that pass content through multiple prompts
+- 🤖 **Flexible Model Selection**: Choose from various OpenAI models including GPT-3.5 Turbo, GPT-4, and add custom models
 - 🔑 **Flexible API Key Management**: Use a global API key or set specific keys for individual templates
 - 📱 **Elegant UI**: Beautiful, draggable response interface with Markdown support
 - 🔄 **Continued Conversations**: Follow up with additional queries in the same conversation
@@ -71,6 +73,18 @@ agent4you is a powerful Chrome extension that brings AI assistance directly into
 4. Use `{selection}` to reference the original selected text
 5. Use `{previousOutput}` to reference the output from the previous step
 
+### AI-Guided Template Creation
+1. In the Options page, click on "AI Guided Setup" tab when creating a new template
+2. Describe what you want your prompt template to do
+3. Click "Generate Prompt Template" and the extension will create a template for you
+4. Review, refine if needed, and save the template
+
+### Model Management
+1. In the Options page, click on "Manage Models" next to the model selection dropdown
+2. Add custom OpenAI models by providing their IDs
+3. Reorder models by dragging them to change their order in the dropdown
+4. Models can be removed (except for GPT-4, which is always available)
+
 ## Configuration Options
 
 ### Global Settings
@@ -82,6 +96,11 @@ agent4you is a powerful Chrome extension that brings AI assistance directly into
 - **OpenAI Model**: Choose which model to use (gpt-3.5-turbo, gpt-4, etc.)
 - **Specific API Key**: Optional API key for this specific template
 - **Workflow Steps**: Sequential processing steps for complex tasks
+
+### Model Management
+- Add custom OpenAI models by ID
+- Reorder models to prioritize frequently used ones
+- Remove models you don't use (except GPT-4, which is always available)
 
 ## Use Cases
 
