@@ -1,15 +1,15 @@
-# agent4you - AI Browser Assistant Chrome Extension
+# Cenvoy - AI Browser Assistant Chrome Extension
 
 **Bring Your Own AI Agent right into your browser!** Transform your web browsing with powerful OpenAI integration.
 
-<img src="agent4you-icon.png" alt="Agent4You Logo" width="128" height="128">
+<img src="Cenvoy-icon.png" alt="Cenvoy Logo" width="128" height="128">
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-yellow)](https://chrome.google.com/webstore)
 [![License](https://img.shields.io/badge/License-NCOSL%201.0-blue)](LICENSE)
 
 ## 🌟 Overview
 
-agent4you is a powerful Chrome extension that brings AI assistance directly into your browsing experience. Simply highlight text on any webpage, right-click, and send it to OpenAI's powerful language models (GPT-3.5, GPT-4) for instant assistance, analysis, or transformation.
+Cenvoy is a powerful Chrome extension that brings AI assistance directly into your browsing experience. Simply highlight text on any webpage, right-click, and send it to OpenAI's powerful language models (GPT-3.5, GPT-4) for instant assistance, analysis, or transformation.
 
 ## 📋 Table of Contents
 - [Features](#features)

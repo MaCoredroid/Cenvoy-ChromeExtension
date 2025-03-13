@@ -1,12 +1,12 @@
 {
-    "name": "agent4you",
+    "name": "Cenvoy",
     "version": "0.1",
     "description": "Bring Your Own Agent right into your browser! Deploy a browser agent via context menu for tailored prompts and efficient workflow.",
     "manifest_version": 3,
     "icons": {
-      "16": "agent4you-icon.png",
-      "48": "agent4you-icon.png",
-      "128": "agent4you-icon.png"
+      "16": "Cenvoy-icon.png",
+      "48": "Cenvoy-icon.png",
+      "128": "Cenvoy-icon.png"
     },
     
     
