@@ -35,7 +35,7 @@ if (!document.getElementById("loading-style")) {
 let conversationHistory = null; // { messages: [...], apiKey: string, model: string }
 let timeoutTimer = null;
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case "SHOW_LOADING":
       conversationHistory = null; // reset conversation when loading new result
@@ -76,6 +76,16 @@ chrome.runtime.onMessage.addListener((message) => {
         showConversation();
       }
       break;
+    case "GET_PAGE_CONTENT":
+      // Get page content when requested by background script
+      const pageContent = getPageContent();
+      const pageTitle = document.title;
+      sendResponse({
+        content: pageContent,
+        title: pageTitle
+      });
+      showHoverLoading();
+      break;
   }
 });
 
@@ -109,7 +119,11 @@ function showConversation() {
   convContainer.id = "conversationContainer";
   convContainer.style.marginBottom = "16px";
 
-  conversationHistory.messages.forEach((msg) => {
+  // For page summaries, skip the first user message which contains the entire page
+  const startIdx = (conversationHistory.isPageSummary) ? 1 : 0;
+  
+  for (let i = startIdx; i < conversationHistory.messages.length; i++) {
+    const msg = conversationHistory.messages[i];
     // Create a row (one chat bubble).
     const row = document.createElement("div");
     row.style.display = "flex";
@@ -183,7 +197,7 @@ function showConversation() {
 
     row.appendChild(bubble);
     convContainer.appendChild(row);
-  });
+  }
 
   content.appendChild(convContainer);
 
@@ -465,4 +479,93 @@ function showLoadingIndicator() {
   timeoutTimer = setTimeout(() => {
     showHoverError("Request timed out (30s).");
   }, 30000);
+}
+
+/**
+ * Get the visible text content of the current page while preserving structural elements.
+ */
+function getPageContent() {
+  // Create a result array to store structured content
+  const result = [];
+  
+  // Function to process a node and its children
+  function processNode(node, depth = 0) {
+    // Skip hidden elements
+    const style = window.getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return;
+    }
+    
+    // Process different node types to preserve structure
+    switch (node.nodeName.toLowerCase()) {
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+      case 'h5':
+      case 'h6':
+        const level = node.nodeName.charAt(1);
+        result.push(`${'#'.repeat(level)} ${node.innerText.trim()}`);
+        break;
+        
+      case 'p':
+        if (node.innerText.trim()) {
+          result.push(node.innerText.trim());
+        }
+        break;
+        
+      case 'li':
+        if (node.innerText.trim()) {
+          result.push(`• ${node.innerText.trim()}`);
+        }
+        break;
+        
+      case 'div':
+      case 'section':
+      case 'article':
+      case 'main':
+        // For container elements, process their children
+        for (const child of node.children) {
+          processNode(child, depth + 1);
+        }
+        break;
+        
+      default:
+        // For leaf nodes with text, include their content if not already processed
+        if (node.children.length === 0 && node.innerText && node.innerText.trim()) {
+          const parent = node.parentElement;
+          if (parent && (parent.nodeName.toLowerCase() !== 'p' && 
+              !['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'].includes(parent.nodeName.toLowerCase()))) {
+            result.push(node.innerText.trim());
+          }
+        } else {
+          // Process children of other nodes
+          for (const child of node.children) {
+            processNode(child, depth + 1);
+          }
+        }
+    }
+  }
+  
+  try {
+    // Start processing from the body
+    processNode(document.body);
+    
+    // If we didn't capture enough content, fall back to regular text
+    if (result.length < 5) {
+      return document.body.innerText
+        .replace(/\s+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+    
+    // Join all elements with newlines for structure
+    return result.join('\n\n');
+  } catch (e) {
+    // Fallback to simple text if any errors occur
+    return document.body.innerText
+      .replace(/\s+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
 }

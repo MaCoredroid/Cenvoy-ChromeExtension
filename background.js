@@ -22,6 +22,13 @@ function createContextMenus() {
     }, function() {
       if (chrome.runtime.lastError) console.warn("Error creating defaultPrompt:", chrome.runtime.lastError.message);
     });
+    chrome.contextMenus.create({
+      id: "summarizePage",
+      title: "Summarize This Page",
+      contexts: ["all"]
+    }, function() {
+      if (chrome.runtime.lastError) console.warn("Error creating summarizePage:", chrome.runtime.lastError.message);
+    });
     chrome.storage.sync.get("promptTemplates", (data) => {
       const templates = data.promptTemplates || [];
       templates.forEach((tpl) => {
@@ -93,6 +100,65 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     return;
   }
   const selectedText = info.selectionText;
+  
+  if (info.menuItemId === "summarizePage") {
+    // Get page content and process it similar to defaultPrompt
+    chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_CONTENT" }, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error("Error getting page content:", chrome.runtime.lastError);
+        return;
+      }
+      
+      chrome.storage.sync.get("globalApiKey", (data) => {
+        const apiKey = data.globalApiKey;
+        if (!apiKey) {
+          chrome.tabs.sendMessage(tab.id, { type: "SHOW_ERROR", payload: { text: "No API key provided. Please set it in Options." } });
+          chrome.runtime.openOptionsPage();
+          return;
+        }
+        
+        const pageContent = response.content;
+        const pageTitle = response.title;
+        const userPrompt = `Summarize the following webpage titled "${pageTitle}":\n\n${pageContent} and answer all questions baesd on that`;
+        
+        const conversationHistory = { 
+          messages: [], 
+          apiKey: apiKey, 
+          model: "gpt-4",
+          isPageSummary: true
+        };
+        conversationHistory.messages.push({ role: "user", content: userPrompt });
+        conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
+        
+        chrome.tabs.sendMessage(tab.id, {
+          type: "SHOW_RESULT",
+          payload: {
+            initialUserPrompt: userPrompt,
+            text: "__LOADING__",
+            conversationHistory: conversationHistory
+          }
+        });
+        
+        // Call LLM using only the user message
+        callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-3.5-turbo")
+          .then((responseText) => {
+            conversationHistory.messages[1].content = responseText;
+            chrome.tabs.sendMessage(tab.id, {
+              type: "CONTINUE_RESPONSE",
+              payload: { responseText }
+            });
+          })
+          .catch((err) => {
+            chrome.tabs.sendMessage(tab.id, {
+              type: "SHOW_ERROR",
+              payload: { text: "OpenAI error: " + err.message }
+            });
+          });
+      });
+    });
+    return;
+  }
+  
   if (info.menuItemId.startsWith("template_")) {
     // Handle user-defined template.
     const templateId = info.menuItemId.replace("template_", "");
