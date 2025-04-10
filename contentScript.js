@@ -488,62 +488,108 @@ function getPageContent() {
   // Create a result array to store structured content
   const result = [];
   
+  // Keep track of processed text to avoid duplicates
+  const processedText = new Set();
+  
   // Function to process a node and its children
   function processNode(node, depth = 0) {
-    // Skip hidden elements
-    const style = window.getComputedStyle(node);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-      return;
-    }
-    
-    // Process different node types to preserve structure
-    switch (node.nodeName.toLowerCase()) {
-      case 'h1':
-      case 'h2':
-      case 'h3':
-      case 'h4':
-      case 'h5':
-      case 'h6':
-        const level = node.nodeName.charAt(1);
-        result.push(`${'#'.repeat(level)} ${node.innerText.trim()}`);
-        break;
-        
-      case 'p':
-        if (node.innerText.trim()) {
-          result.push(node.innerText.trim());
+    try {
+      // Skip hidden elements
+      const style = window.getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        return;
+      }
+      
+      // Special handling for text nodes directly
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent.trim();
+        if (text && !processedText.has(text)) {
+          result.push(text);
+          processedText.add(text);
         }
-        break;
-        
-      case 'li':
-        if (node.innerText.trim()) {
-          result.push(`• ${node.innerText.trim()}`);
-        }
-        break;
-        
-      case 'div':
-      case 'section':
-      case 'article':
-      case 'main':
-        // For container elements, process their children
-        for (const child of node.children) {
-          processNode(child, depth + 1);
-        }
-        break;
-        
-      default:
-        // For leaf nodes with text, include their content if not already processed
-        if (node.children.length === 0 && node.innerText && node.innerText.trim()) {
-          const parent = node.parentElement;
-          if (parent && (parent.nodeName.toLowerCase() !== 'p' && 
-              !['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'].includes(parent.nodeName.toLowerCase()))) {
-            result.push(node.innerText.trim());
+        return;
+      }
+      
+      // Get the full text of this node before processing children
+      const fullText = node.innerText ? node.innerText.trim() : '';
+      
+      // Process different node types to preserve structure
+      switch (node.nodeName.toLowerCase()) {
+        case 'h1':
+        case 'h2':
+        case 'h3':
+        case 'h4':
+        case 'h5':
+        case 'h6':
+          const level = node.nodeName.charAt(1);
+          if (fullText && !processedText.has(fullText)) {
+            result.push(`${'#'.repeat(level)} ${fullText}`);
+            processedText.add(fullText);
           }
-        } else {
-          // Process children of other nodes
-          for (const child of node.children) {
+          break;
+          
+        case 'p':
+          if (fullText && !processedText.has(fullText)) {
+            result.push(fullText);
+            processedText.add(fullText);
+          }
+          break;
+          
+        case 'li':
+          if (fullText && !processedText.has(fullText)) {
+            result.push(`• ${fullText}`);
+            processedText.add(fullText);
+          }
+          break;
+          
+        case 'a':
+        case 'span':
+        case 'strong':
+        case 'em':
+        case 'b':
+        case 'i':
+          // For inline elements, get their text if parent hasn't been processed
+          const parentText = node.parentElement ? node.parentElement.innerText.trim() : '';
+          if (fullText && fullText !== parentText && !processedText.has(fullText)) {
+            result.push(fullText);
+            processedText.add(fullText);
+          }
+          // Process children to find further nested elements
+          for (const child of node.childNodes) {
             processNode(child, depth + 1);
           }
-        }
+          break;
+          
+        case 'div':
+        case 'section':
+        case 'article':
+        case 'main':
+        case 'nav':
+        case 'header':
+        case 'footer':
+          // For container elements, check if their text is worth adding directly
+          // (if it's short and coherent)
+          if (fullText && fullText.length < 200 && !processedText.has(fullText) && 
+              node.children.length > 0 && fullText.split('\n').length < 3) {
+            result.push(fullText);
+            processedText.add(fullText);
+          } else {
+            // Otherwise process their children
+            for (const child of node.childNodes) {
+              processNode(child, depth + 1);
+            }
+          }
+          break;
+          
+        default:
+          // Process children of other nodes
+          for (const child of node.childNodes) {
+            processNode(child, depth + 1);
+          }
+      }
+    } catch (e) {
+      // Skip problematic nodes
+      console.error("Error processing node:", e);
     }
   }
   
@@ -559,10 +605,14 @@ function getPageContent() {
         .trim();
     }
     
+    // Filter out very short lines that might be noise
+    const filteredResults = result.filter(line => line.length > 1);
+    
     // Join all elements with newlines for structure
-    return result.join('\n\n');
+    return filteredResults.join('\n\n');
   } catch (e) {
     // Fallback to simple text if any errors occur
+    console.error("Error processing page content:", e);
     return document.body.innerText
       .replace(/\s+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
