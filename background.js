@@ -140,7 +140,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         });
         
         // Call LLM using only the user message
-        callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-3.5-turbo")
+        callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-4")
           .then((responseText) => {
             conversationHistory.messages[1].content = responseText;
             chrome.tabs.sendMessage(tab.id, {
@@ -246,7 +246,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       }
       const defaultPrompt = "You are a helpful assistant, help user understand the following content from web page";
       const userPrompt = defaultPrompt + " " + selectedText;
-      const conversationHistory = { messages: [], apiKey: apiKey, model: "gpt-3.5-turbo" };
+      const conversationHistory = { messages: [], apiKey: apiKey, model: "gpt-4" };
       conversationHistory.messages.push({ role: "user", content: userPrompt });
       conversationHistory.messages.push({ role: "assistant", content: "__LOADING__" });
       chrome.tabs.sendMessage(tab.id, {
@@ -258,7 +258,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         }
       });
       // Call LLM using only the user message
-      callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-3.5-turbo")
+      callOpenAIUnified(conversationHistory.messages.slice(0, 1), apiKey, "gpt-4")
         .then((responseText) => {
           conversationHistory.messages[1].content = responseText;
           chrome.tabs.sendMessage(tab.id, {
@@ -281,10 +281,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
  *
  * @param {Array} messages - Array of message objects (each with role and content).
  * @param {string} apiKey - The API key to use for this request.
- * @param {string} [model="gpt-3.5-turbo"] - The OpenAI model to use.
+ * @param {string} [model="gpt-4"] - The OpenAI model to use.
  * @returns {Promise<string>} - The response content from OpenAI.
  */
-async function callOpenAIUnified(messages, apiKey, model = "gpt-3.5-turbo") {
+async function callOpenAIUnified(messages, apiKey, model = "gpt-4") {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
