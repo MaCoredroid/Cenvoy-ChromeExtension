@@ -1,11 +1,7 @@
 // background.js
 
-let isContextMenuUpdating = false;
-
 // Function to (re)create all context menus.
 function createContextMenus() {
-  if (isContextMenuUpdating) return;
-  isContextMenuUpdating = true;
   chrome.contextMenus.removeAll(() => {
     // Inserted context menu item for options page
     chrome.contextMenus.create({
@@ -40,7 +36,6 @@ function createContextMenus() {
           if (chrome.runtime.lastError) console.warn("Error creating template menu:", chrome.runtime.lastError.message);
         });
       });
-      isContextMenuUpdating = false;
     });
   });
 }
@@ -55,6 +50,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && (changes.promptTemplates || changes.globalApiKey)) {
     createContextMenus();
   }
+});
+
+// Ensure context menus are created when extension is loaded or browser is restarted
+chrome.runtime.onStartup.addListener(() => {
+  createContextMenus();
 });
 
 // Listen for messages from the options page to update context menus and for continued conversation.

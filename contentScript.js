@@ -494,10 +494,12 @@ function getPageContent() {
   // Function to process a node and its children
   function processNode(node, depth = 0) {
     try {
-      // Skip hidden elements
-      const style = window.getComputedStyle(node);
-      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        return;
+      // Skip hidden elements - only check Element nodes
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const style = window.getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+          return;
+        }
       }
       
       // Special handling for text nodes directly
