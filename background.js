@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const globalApiKey = data.globalApiKey;
       // Use the API key and model stored with the conversation, or fallback if missing.
       const usedApiKey = conversation.apiKey || globalApiKey;
-      const usedModel = conversation.model || "gpt-3.5-turbo";
+      const usedModel = conversation.model || "gpt-4";
       if (!usedApiKey) {
         chrome.tabs.sendMessage(sender.tab.id, {
           type: "CONTINUE_RESPONSE",

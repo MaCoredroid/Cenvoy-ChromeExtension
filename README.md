@@ -33,6 +33,8 @@ Cenvoy is a powerful Chrome extension that brings AI assistance directly into yo
 - 🔄 **Continued Conversations**: Follow up with additional queries in the same conversation
 - 💻 **Cross-browser Compatibility**: Works seamlessly in Chrome (more browsers coming soon)
 - 🛠️ **Customizable Experience**: Tailor the extension to fit your specific workflow needs
+- 📄 **Page Content Summarization**: Get AI-powered summaries of entire webpage content with a single click
+- ❓ **Interactive Q&A**: Ask questions about the current page content and get contextual answers
 
 ## 📥 Installation
 
@@ -59,6 +61,19 @@ Cenvoy is a powerful Chrome extension that brings AI assistance directly into yo
 2. Right-click to open the context menu
 3. Select "Ask OpenAI" for instant AI assistance
 4. View the response in a sleek, draggable interface
+
+### 📄 Page Content Summarization
+1. Click the extension icon in your toolbar
+2. Select "Summarize Page" from the dropdown menu
+3. Get an AI-generated summary of the entire webpage content
+4. Use the summary for quick understanding or reference
+
+### ❓ Question Answering
+1. Click the extension icon in your toolbar
+2. Select "Ask Questions" from the dropdown menu
+3. Type your question about the current page
+4. Receive AI-powered answers based on the page content
+5. Continue the conversation with follow-up questions
 
 ### 📝 Custom Templates
 1. Create templates in the Options page
@@ -107,6 +122,8 @@ Cenvoy is a powerful Chrome extension that brings AI assistance directly into yo
 - 🌐 **Translation Tool**: Convert text to any language
 - ✏️ **Content Creator**: Generate creative variations of existing text
 - 🎓 **Learning Companion**: Get clear explanations of complex topics
+- 📚 **Quick Reading**: Get instant summaries of long articles and documents
+- 🔍 **Content Navigation**: Ask questions to quickly find specific information on a page
 
 ## 🔍 Technical Details
 
